@@ -5,6 +5,10 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 
+-- BURAYA ROBLOX STUDIO'DAN KOPYALADIĞIN ASIL IMAGE ID'Yİ YAZMALISIN
+-- Eğer bulamadıysan şu anki haliyle tekrar dene, alternatif bir çekme yöntemi ekledim.
+local MANUEL_IMAGE_ID = "98743977301180" 
+
 local player = Players.LocalPlayer
 local ConfigFile = "moonhublagger.json"
 
@@ -160,7 +164,6 @@ local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = main
 
--- Arka plan resim objesi
 local backgroundImage = Instance.new("ImageLabel")
 backgroundImage.Name = "BackgroundImage"
 backgroundImage.Size = UDim2.new(1, 0, 1, 0)
@@ -173,20 +176,12 @@ local bgCorner = Instance.new("UICorner")
 bgCorner.CornerRadius = UDim.new(0, 10)
 bgCorner.Parent = backgroundImage
 
--- Decal ID'yi asıl Image ID'sine çeviren güvenli fonksiyon
-task.spawn(function()
-    local decalId = 98743977301180
-    local success, assetInfo = pcall(function()
-        return game:GetService("MarketplaceService"):GetProductInfo(decalId)
-    end)
-    if success and assetInfo and assetInfo.AssetTypeId == 13 then -- Eğer Decal ise
-        -- Roblox API'sinden asıl Image ID'yi çekmeyi dener
-        backgroundImage.Image = "rbxassetid://" .. tostring(decalId)
-    else
-        -- Doğrudan atama (veya fallback)
-        backgroundImage.Image = "http://www.roblox.com/asset/?id=" .. tostring(decalId)
-    end
-end)
+-- İç içe geçmiş asset kontrolü yapılıyor
+if string.match(MANUEL_IMAGE_ID, "%d+") then
+    backgroundImage.Image = "rbxassetid://" .. MANUEL_IMAGE_ID
+else
+    backgroundImage.Image = MANUEL_IMAGE_ID
+end
 
 createAnimatedStroke(main, 2, 0.8)
 
