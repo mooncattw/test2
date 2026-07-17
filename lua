@@ -154,29 +154,14 @@ local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 135)
 main.Position = UDim2.new(0.5, -110, 0.5, -67)
 main.BackgroundColor3 = Color3.fromRGB(8, 12, 28)
-main.BackgroundTransparency = 0.4 -- Arka plan resminin görünmesi için şeffaflığı biraz artırdık
+main.BackgroundTransparency = 0.15
 main.ClipsDescendants = true
 main.Active = true
 main.Parent = gui
 
--- YENİ: Arka Plan Resmi Ekleme Bölümü
-local mainBackgroundImage = Instance.new("ImageLabel")
-mainBackgroundImage.Name = "MenuBackground"
-mainBackgroundImage.Size = UDim2.new(1, 0, 1, 0)
-mainBackgroundImage.Position = UDim2.new(0, 0, 0, 0)
-mainBackgroundImage.BackgroundTransparency = 1
-mainBackgroundImage.Image = "rbxassetid://98743977301180"
-mainBackgroundImage.ScaleType = Enum.ScaleType.Crop -- Görseli bozmadan çerçeveye sığdırır
-mainBackgroundImage.ZIndex = 0 -- Diğer UI elementlerinin arkasında kalmasını sağlar
-mainBackgroundImage.Parent = main
-
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = main
-
--- Resmin de köşelerinin yuvarlanması için UICorner kopyalıyoruz
-local imgCorner = mainCorner:Clone()
-imgCorner.Parent = mainBackgroundImage
 
 createAnimatedStroke(main, 2, 0.8)
 
@@ -189,7 +174,6 @@ title.Font = Enum.Font.GothamBlack
 title.TextSize = 16
 title.TextColor3 = Color3.new(1, 1, 1)
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 2
 title.Parent = main
 
 local titleGrad = Instance.new("UIGradient")
@@ -211,8 +195,6 @@ local toggleRow = Instance.new("Frame")
 toggleRow.Size = UDim2.new(1, -20, 0, 34)
 toggleRow.Position = UDim2.new(0, 10, 0, 42)
 toggleRow.BackgroundColor3 = Color3.fromRGB(18, 26, 48)
-toggleRow.BackgroundTransparency = 0.2 -- İç satırları da hafif şeffaf yaparak resmi hissettiriyoruz
-toggleRow.ZIndex = 2
 toggleRow.Parent = main
 
 Instance.new("UICorner", toggleRow)
@@ -227,14 +209,12 @@ toggleLabel.Font = Enum.Font.GothamBlack
 toggleLabel.TextSize = 13
 toggleLabel.TextColor3 = Color3.new(1, 1, 1)
 toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-toggleLabel.ZIndex = 3
 toggleLabel.Parent = toggleRow
 
 switchBg = Instance.new("Frame")
 switchBg.Size = UDim2.new(0, 36, 0, 18)
 switchBg.Position = UDim2.new(1, -46, 0.5, -9)
 switchBg.BackgroundTransparency = 1
-switchBg.ZIndex = 3
 switchBg.Parent = toggleRow
 
 Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 9)
@@ -244,7 +224,6 @@ switchKnob = Instance.new("Frame")
 switchKnob.Size = UDim2.new(0, 14, 0, 14)
 switchKnob.Position = UDim2.new(0, 2, 0.5, -7)
 switchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-switchKnob.ZIndex = 4
 switchKnob.Parent = switchBg
 
 Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
@@ -253,7 +232,6 @@ toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, -65, 1, 0)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Text = ""
-toggleBtn.ZIndex = 4
 toggleBtn.Parent = toggleRow
 
 toggleBtn.MouseButton1Click:Connect(function()
@@ -268,7 +246,6 @@ kbBtn.AutoButtonColor = false
 kbBtn.Font = Enum.Font.GothamBlack
 kbBtn.TextSize = 10
 kbBtn.TextColor3 = Color3.new(1, 1, 1)
-kbBtn.ZIndex = 4
 kbBtn.Parent = toggleRow
 
 Instance.new("UICorner", kbBtn).CornerRadius = UDim.new(0, 5)
@@ -306,7 +283,6 @@ local modeRow = Instance.new("Frame")
 modeRow.Size = UDim2.new(1, -20, 0, 34)
 modeRow.Position = UDim2.new(0, 10, 0, 84)
 modeRow.BackgroundTransparency = 1
-modeRow.ZIndex = 2
 modeRow.Parent = main
 
 local UIListLayout = Instance.new("UIListLayout")
@@ -336,7 +312,6 @@ local function createModeButton(name, order)
     btn.TextSize = 11
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.AutoButtonColor = false
-    btn.ZIndex = 3
     btn.Parent = modeRow
 
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
