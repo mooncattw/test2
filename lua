@@ -76,7 +76,7 @@ local function stopLaggerLoop()
     end
 end
 
-local switchKnob, switchBg, toggleBtn, buttons
+local switchKnob, switchBg, toggleBtn, buttons, kbBtn
 
 local function setToggle(newState)
     laggerEnabled = newState
@@ -119,7 +119,6 @@ gui.Name = "CrasherUI_Toggle"
 gui.ResetOnSpawn = false
 gui.Parent = CoreGui.HiddenUI
 
--- [YENİLENEN RGB EFEKT FONKSİYONU]
 local function createAnimatedStroke(parent, thickness, speed)
     local s = Instance.new("UIStroke")
     s.Thickness = thickness or 1.5
@@ -129,18 +128,17 @@ local function createAnimatedStroke(parent, thickness, speed)
 
     local g = Instance.new("UIGradient")
     g.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),     -- Kırmızı
-        ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 255, 0)), -- Sarı
-        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 0)),   -- Yeşil
-        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 255, 255)), -- Turkuaz
-        ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0, 0, 255)),   -- Mavi
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0)),     -- Kırmızı (Döngü için tam tur)
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 25, 60)),
+        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 140, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 140, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 25, 60)),
     })
     g.Rotation = 0
     g.Parent = s
 
     task.spawn(function()
-        local spd = speed or 1.8 -- Akıcı bir geçiş için hız ayarı
+        local spd = speed or 1.2
         while parent and parent.Parent and gui.Parent do
             g.Rotation = (g.Rotation + spd) % 360
             task.wait()
@@ -150,14 +148,15 @@ local function createAnimatedStroke(parent, thickness, speed)
     return s, g
 end
 
+-- GUI KÜÇÜLTÜLDÜ (Yüksekliği 175'ten 135'e düşürüldü)
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 220, 0, 175)
-main.Position = UDim2.new(0.5, -110, 0.5, -87)
+main.Size = UDim2.new(0, 220, 0, 135)
+main.Position = UDim2.new(0.5, -110, 0.5, -67)
 main.BackgroundColor3 = Color3.fromRGB(8, 12, 28)
 main.BackgroundTransparency = 0.15
 main.ClipsDescendants = true
 main.Active = true
-main.Parent = main
+main.Parent = gui
 
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
@@ -201,7 +200,7 @@ Instance.new("UICorner", toggleRow)
 createAnimatedStroke(toggleRow, 1, 1.2)
 
 local toggleLabel = Instance.new("TextLabel")
-toggleLabel.Size = UDim2.new(1, -60, 1, 0)
+toggleLabel.Size = UDim2.new(1, -125, 1, 0)
 toggleLabel.Position = UDim2.new(0, 10, 0, 0)
 toggleLabel.BackgroundTransparency = 1
 toggleLabel.Text = "Lagger"
@@ -229,7 +228,7 @@ switchKnob.Parent = switchBg
 Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
 
 toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, 0, 1, 0)
+toggleBtn.Size = UDim2.new(1, -65, 1, 0) -- Keybind alanına tıklamayı engellemek için boyutu daraltıldı
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Text = ""
 toggleBtn.Parent = toggleRow
@@ -238,41 +237,22 @@ toggleBtn.MouseButton1Click:Connect(function()
     setToggle(not laggerEnabled)
 end)
 
-local kbRow = Instance.new("Frame")
-kbRow.Size = UDim2.new(1, -20, 0, 34)
-kbRow.Position = UDim2.new(0, 10, 0, 82)
-kbRow.BackgroundColor3 = Color3.fromRGB(18, 26, 48)
-kbRow.Parent = main
-
-Instance.new("UICorner", kbRow)
-createAnimatedStroke(kbRow, 1, 1.2)
-
-local kbLabel = Instance.new("TextLabel")
-kbLabel.Size = UDim2.new(1, -80, 1, 0)
-kbLabel.Position = UDim2.new(0, 10, 0, 0)
-kbLabel.BackgroundTransparency = 1
-kbLabel.Text = "Keybind"
-kbLabel.Font = Enum.Font.GothamBlack
-kbLabel.TextSize = 13
-kbLabel.TextColor3 = Color3.new(1, 1, 1)
-kbLabel.TextXAlignment = Enum.TextXAlignment.Left
-kbLabel.Parent = kbRow
-
-local kbBtn = Instance.new("TextButton")
-kbBtn.Size = UDim2.new(0, 65, 0, 22)
-kbBtn.Position = UDim2.new(1, -73, 0.5, -11)
+-- YENİ KEYBIND BUTONU (Lagger yanına eklendi, efektli ve animasyonlu)
+kbBtn = Instance.new("TextButton")
+kbBtn.Size = UDim2.new(0, 55, 0, 20)
+kbBtn.Position = UDim2.new(1, -110, 0.5, -10)
 kbBtn.BackgroundColor3 = Color3.fromRGB(30, 42, 75)
 kbBtn.AutoButtonColor = false
 kbBtn.Font = Enum.Font.GothamBlack
 kbBtn.TextSize = 10
 kbBtn.TextColor3 = Color3.new(1, 1, 1)
-kbBtn.Parent = kbRow
+kbBtn.Parent = toggleRow
 
 Instance.new("UICorner", kbBtn).CornerRadius = UDim.new(0, 5)
 createAnimatedStroke(kbBtn, 1.2, 1.2)
 
 local function actualizarKeybindButton()
-    kbBtn.Text = boundKey and ("[ " .. boundKey.Name .. " ]") or "[ ... ]"
+    kbBtn.Text = boundKey and (boundKey.Name) or "..."
 end
 actualizarKeybindButton()
 
@@ -280,7 +260,7 @@ local listeningForKey = false
 
 kbBtn.MouseButton1Click:Connect(function()
     listeningForKey = true
-    kbBtn.Text = "[ ... ]"
+    kbBtn.Text = "..."
 end)
 
 UserInputService.InputBegan:Connect(function(input, gpe)
@@ -299,9 +279,10 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
+-- SEVİYE BUTONLARI YUKARI KAYDIRILDI (Position 124'ten 84'e çekildi)
 local modeRow = Instance.new("Frame")
 modeRow.Size = UDim2.new(1, -20, 0, 34)
-modeRow.Position = UDim2.new(0, 10, 0, 124)
+modeRow.Position = UDim2.new(0, 10, 0, 84)
 modeRow.BackgroundTransparency = 1
 modeRow.Parent = main
 
