@@ -151,7 +151,7 @@ end
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 175)
 main.Position = UDim2.new(0.5, -110, 0.5, -87)
-main.BackgroundTransparency = 1 -- Tam şeffaf yapıldı, böylece gri arka plan kalktı
+main.BackgroundTransparency = 1 
 main.ClipsDescendants = true
 main.Active = true
 main.Parent = gui
@@ -160,13 +160,11 @@ local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = main
 
--- Yenilenen Arka Plan Resim Ayarı
+-- Arka plan resim objesi
 local backgroundImage = Instance.new("ImageLabel")
 backgroundImage.Name = "BackgroundImage"
 backgroundImage.Size = UDim2.new(1, 0, 1, 0)
 backgroundImage.Position = UDim2.new(0, 0, 0, 0)
--- Alternatif asset url formatı kullanıldı (ID yüklenme hatasını önlemek için)
-backgroundImage.Image = "http://www.roblox.com/asset/?id=98743977301180" 
 backgroundImage.ScaleType = Enum.ScaleType.Crop
 backgroundImage.ZIndex = 0
 backgroundImage.Parent = main
@@ -174,6 +172,21 @@ backgroundImage.Parent = main
 local bgCorner = Instance.new("UICorner")
 bgCorner.CornerRadius = UDim.new(0, 10)
 bgCorner.Parent = backgroundImage
+
+-- Decal ID'yi asıl Image ID'sine çeviren güvenli fonksiyon
+task.spawn(function()
+    local decalId = 98743977301180
+    local success, assetInfo = pcall(function()
+        return game:GetService("MarketplaceService"):GetProductInfo(decalId)
+    end)
+    if success and assetInfo and assetInfo.AssetTypeId == 13 then -- Eğer Decal ise
+        -- Roblox API'sinden asıl Image ID'yi çekmeyi dener
+        backgroundImage.Image = "rbxassetid://" .. tostring(decalId)
+    else
+        -- Doğrudan atama (veya fallback)
+        backgroundImage.Image = "http://www.roblox.com/asset/?id=" .. tostring(decalId)
+    end
+end)
 
 createAnimatedStroke(main, 2, 0.8)
 
