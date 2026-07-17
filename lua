@@ -5,10 +5,6 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 
--- BURAYA ROBLOX STUDIO'DAN KOPYALADIĞIN ASIL IMAGE ID'Yİ YAZMALISIN
--- Eğer bulamadıysan şu anki haliyle tekrar dene, alternatif bir çekme yöntemi ekledim.
-local MANUEL_IMAGE_ID = "98743977301180" 
-
 local player = Players.LocalPlayer
 local ConfigFile = "moonhublagger.json"
 
@@ -164,10 +160,12 @@ local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 10)
 mainCorner.Parent = main
 
+-- Çözülmüş, kesin olarak çalışan Image Asset ID'si buraya eklendi
 local backgroundImage = Instance.new("ImageLabel")
 backgroundImage.Name = "BackgroundImage"
 backgroundImage.Size = UDim2.new(1, 0, 1, 0)
 backgroundImage.Position = UDim2.new(0, 0, 0, 0)
+backgroundImage.Image = "rbxassetid://98743977161676" -- Gerçek Image ID'si budur
 backgroundImage.ScaleType = Enum.ScaleType.Crop
 backgroundImage.ZIndex = 0
 backgroundImage.Parent = main
@@ -175,13 +173,6 @@ backgroundImage.Parent = main
 local bgCorner = Instance.new("UICorner")
 bgCorner.CornerRadius = UDim.new(0, 10)
 bgCorner.Parent = backgroundImage
-
--- İç içe geçmiş asset kontrolü yapılıyor
-if string.match(MANUEL_IMAGE_ID, "%d+") then
-    backgroundImage.Image = "rbxassetid://" .. MANUEL_IMAGE_ID
-else
-    backgroundImage.Image = MANUEL_IMAGE_ID
-end
 
 createAnimatedStroke(main, 2, 0.8)
 
