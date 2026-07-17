@@ -14,7 +14,8 @@ local NIVELES = {
     HIGH = { poder = 70 }
 }
 
-local boundKey = Enum.KeyCode.M
+-- Varsayılan tuş kaldırıldı, json yoksa boş (...) başlayacak
+local boundKey = nil 
 local nivelActual = "LOW"
 
 local function SaveConfig()
@@ -36,6 +37,9 @@ local function LoadConfig()
             end
             nivelActual = data.Nivel or "LOW"
         end)
+    else
+        -- Dosya yoksa boundKey zaten nil kalacak
+        boundKey = nil
     end
 end
 LoadConfig()
@@ -148,7 +152,6 @@ local function createAnimatedStroke(parent, thickness, speed)
     return s, g
 end
 
--- GUI KÜÇÜLTÜLDÜ (Yüksekliği 175'ten 135'e düşürüldü)
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 135)
 main.Position = UDim2.new(0.5, -110, 0.5, -67)
@@ -228,7 +231,7 @@ switchKnob.Parent = switchBg
 Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
 
 toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, -65, 1, 0) -- Keybind alanına tıklamayı engellemek için boyutu daraltıldı
+toggleBtn.Size = UDim2.new(1, -65, 1, 0)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Text = ""
 toggleBtn.Parent = toggleRow
@@ -237,7 +240,6 @@ toggleBtn.MouseButton1Click:Connect(function()
     setToggle(not laggerEnabled)
 end)
 
--- YENİ KEYBIND BUTONU (Lagger yanına eklendi, efektli ve animasyonlu)
 kbBtn = Instance.new("TextButton")
 kbBtn.Size = UDim2.new(0, 55, 0, 20)
 kbBtn.Position = UDim2.new(1, -110, 0.5, -10)
@@ -274,12 +276,12 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         end
         return
     end
+    -- Sadece bir tuş atanmışsa algılar
     if boundKey and input.KeyCode == boundKey then
         setToggle(not laggerEnabled)
     end
 end)
 
--- SEVİYE BUTONLARI YUKARI KAYDIRILDI (Position 124'ten 84'e çekildi)
 local modeRow = Instance.new("Frame")
 modeRow.Size = UDim2.new(1, -20, 0, 34)
 modeRow.Position = UDim2.new(0, 10, 0, 84)
