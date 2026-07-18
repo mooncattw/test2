@@ -59,12 +59,7 @@ local commonWords = {
     ["now"]=true, ["new"]=true, ["use"]=true, ["get"]=true, ["out"]=true,
     ["all"]=true, ["are"]=true, ["can"]=true, ["with"]=true, ["from"]=true,
     ["this"]=true, ["that"]=true, ["here"]=true, ["more"]=true, ["info"]=true,
-    ["redeem"]=true, ["claim"]=true, ["enter"]=true, ["reward"]=true, ["rewards"]=true,
-    ["update"]=true, ["join"]=true, ["group"]=true, ["like"]=true, ["follow"]=true,
-    ["sub"]=true, ["click"]=true, ["type"]=true, ["copy"]=true, ["paste"]=true,
-    ["server"]=true, ["event"]=true, ["live"]=true, ["news"]=true, ["soon"]=true,
-    ["available"]=true, ["expired"]=true, ["welcome"]=true, ["thanks"]=true,
-    ["player"]=true, ["players"]=true
+    ["redeem"]=true, ["claim"]=true, ["enter"]=true, ["reward"]=true
 }
 
 local function isBlacklisted(lowerText)
@@ -178,8 +173,8 @@ local function redeemViaRF(code)
     local rf = getRedemptionRF()
     if not rf then return false end
     local formatted = formatCode(code)
-    local ok = pcall(function() rf:InvokeServer(formatted) end)
-    return ok
+    pcall(function() rf:InvokeServer(formatted) end)
+    return true
 end
 
 local function writeAndSubmit(code)
@@ -197,7 +192,7 @@ local function writeAndSubmit(code)
     local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
     local ready = #collectedCodes >= _G.SubmitAfterCount
 
-    if ready and _G.AutoSubmitEnabled then
+    if ready then
         pcall(function()
             textBox:CaptureFocus()
             textBox.Text = fullText
@@ -304,6 +299,7 @@ local function startMonitoring()
             end
         end)
         table.insert(activeConnections, conn)
+        logStatus("Monitoring Started")
     end)
 end
 
@@ -323,9 +319,7 @@ end
 
 -- ==================== MOON HUB GUI ====================
 local CoreGui = game:GetService("CoreGui")
-if CoreGui:FindFirstChild("MoonHubCodeRedeemer") then
-    CoreGui.MoonHubCodeRedeemer:Destroy()
-end
+if CoreGui:FindFirstChild("MoonHubCodeRedeemer") then CoreGui.MoonHubCodeRedeemer:Destroy() end
 
 ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MoonHubCodeRedeemer"
@@ -358,8 +352,8 @@ local function createAnimatedStroke(parent, thickness, speed)
 end
 
 MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 220, 0, 145)
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -72)
+MainFrame.Size = UDim2.new(0, 235, 0, 160)
+MainFrame.Position = UDim2.new(0.5, -117.5, 0.5, -80)
 MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
 MainFrame.BackgroundTransparency = 0.25
 MainFrame.ClipsDescendants = true
@@ -403,12 +397,12 @@ mainCorner.Parent = MainFrame
 createAnimatedStroke(MainFrame, 2, 0.8)
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 20)
-title.Position = UDim2.new(0, 10, 0, 5)
+title.Size = UDim2.new(1, -20, 0, 22)
+title.Position = UDim2.new(0, 10, 0, 6)
 title.BackgroundTransparency = 1
 title.Text = "Moon Hub"
 title.Font = Enum.Font.GothamBlack
-title.TextSize = 16
+title.TextSize = 17
 title.TextColor3 = Color3.new(1, 1, 1)
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = MainFrame
@@ -428,79 +422,75 @@ task.spawn(function()
     end
 end)
 
+-- Toggle Row
 local toggleRow = Instance.new("Frame")
-toggleRow.Size = UDim2.new(1, -20, 0, 40)
-toggleRow.Position = UDim2.new(0, 10, 0, 32)
+toggleRow.Size = UDim2.new(1, -20, 0, 42)
+toggleRow.Position = UDim2.new(0, 10, 0, 35)
 toggleRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-toggleRow.ZIndex = 2
 toggleRow.Parent = MainFrame
 Instance.new("UICorner", toggleRow)
-createAnimatedStroke(toggleRow, 1, 1.2)
+createAnimatedStroke(toggleRow, 1.5, 1.2)
 
 local toggleLabel = Instance.new("TextLabel")
-toggleLabel.Size = UDim2.new(0, 100, 1, 0)
-toggleLabel.Position = UDim2.new(0, 10, 0, 0)
+toggleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+toggleLabel.Position = UDim2.new(0, 12, 0, 0)
 toggleLabel.BackgroundTransparency = 1
-toggleLabel.Text = "Auto Redeem"
+toggleLabel.Text = "Start Monitoring"
 toggleLabel.Font = Enum.Font.GothamBlack
-toggleLabel.TextSize = 13
+toggleLabel.TextSize = 14
 toggleLabel.TextColor3 = Color3.new(1, 1, 1)
 toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-toggleLabel.ZIndex = 3
 toggleLabel.Parent = toggleRow
 
 local switchBg = Instance.new("Frame")
-switchBg.Size = UDim2.new(0, 36, 0, 18)
-switchBg.Position = UDim2.new(1, -46, 0.5, -9)
+switchBg.Size = UDim2.new(0, 42, 0, 22)
+switchBg.Position = UDim2.new(1, -52, 0.5, -11)
 switchBg.BackgroundTransparency = 1
-switchBg.ZIndex = 3
 switchBg.Parent = toggleRow
-Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 9)
-createAnimatedStroke(switchBg, 2, 1.5)
+Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 11)
+createAnimatedStroke(switchBg, 2, 1.4)
 
 local switchKnob = Instance.new("Frame")
-switchKnob.Size = UDim2.new(0, 14, 0, 14)
-switchKnob.Position = UDim2.new(0, 2, 0.5, -7)
+switchKnob.Size = UDim2.new(0, 18, 0, 18)
+switchKnob.Position = UDim2.new(0, 2, 0.5, -9)
 switchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-switchKnob.ZIndex = 4
 switchKnob.Parent = switchBg
-Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
+Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 9)
 
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, 0, 1, 0)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Text = ""
-toggleBtn.ZIndex = 4
 toggleBtn.Parent = toggleRow
 
+-- Submit After
 local countFrame = Instance.new("Frame")
-countFrame.Size = UDim2.new(1, -20, 0, 35)
-countFrame.Position = UDim2.new(0, 10, 0, 78)
+countFrame.Size = UDim2.new(1, -20, 0, 38)
+countFrame.Position = UDim2.new(0, 10, 0, 82)
 countFrame.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-countFrame.ZIndex = 2
 countFrame.Parent = MainFrame
 Instance.new("UICorner", countFrame)
-createAnimatedStroke(countFrame, 1, 1.2)
+createAnimatedStroke(countFrame, 1.5, 1.1)
 
 local countLabel = Instance.new("TextLabel")
 countLabel.Size = UDim2.new(0.55, 0, 1, 0)
 countLabel.Position = UDim2.new(0, 12, 0, 0)
 countLabel.BackgroundTransparency = 1
-countLabel.Text = "Submit After"
+countLabel.Text = "Submit After:"
 countLabel.Font = Enum.Font.GothamSemibold
-countLabel.TextSize = 12.5
+countLabel.TextSize = 13
 countLabel.TextColor3 = Color3.new(1, 1, 1)
 countLabel.TextXAlignment = Enum.TextXAlignment.Left
 countLabel.Parent = countFrame
 
 local countBox = Instance.new("TextBox")
-countBox.Size = UDim2.new(0, 55, 0, 26)
-countBox.Position = UDim2.new(1, -65, 0.5, -13)
-countBox.BackgroundColor3 = Color3.fromRGB(25, 35, 65)
+countBox.Size = UDim2.new(0, 60, 0, 27)
+countBox.Position = UDim2.new(1, -70, 0.5, -13.5)
+countBox.BackgroundColor3 = Color3.fromRGB(10, 18, 40)
 countBox.Text = tostring(_G.SubmitAfterCount)
 countBox.TextColor3 = Color3.new(1, 1, 1)
 countBox.Font = Enum.Font.GothamBold
-countBox.TextSize = 13
+countBox.TextSize = 14
 countBox.Parent = countFrame
 Instance.new("UICorner", countBox).CornerRadius = UDim.new(0, 6)
 
@@ -515,26 +505,28 @@ countBox.FocusLost:Connect(function()
     end
 end)
 
+-- Collected
 CollectedLabel = Instance.new("TextLabel")
 CollectedLabel.Name = "CollectedLabel"
-CollectedLabel.Size = UDim2.new(1, -20, 0, 20)
-CollectedLabel.Position = UDim2.new(0, 10, 0, 118)
+CollectedLabel.Size = UDim2.new(1, -20, 0, 22)
+CollectedLabel.Position = UDim2.new(0, 10, 0, 125)
 CollectedLabel.BackgroundTransparency = 1
 CollectedLabel.Text = "Collected: 0/2"
-CollectedLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
-CollectedLabel.TextSize = 13
+CollectedLabel.TextColor3 = Color3.fromRGB(120, 200, 255)
+CollectedLabel.TextSize = 13.5
 CollectedLabel.Font = Enum.Font.GothamSemibold
 CollectedLabel.TextXAlignment = Enum.TextXAlignment.Center
 CollectedLabel.Parent = MainFrame
 
+-- Status
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Name = "StatusLabel"
 StatusLabel.Size = UDim2.new(1, -20, 0, 18)
-StatusLabel.Position = UDim2.new(0, 10, 0, 142)
+StatusLabel.Position = UDim2.new(0, 10, 0, 150)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Ready"
-StatusLabel.TextColor3 = Color3.fromRGB(160, 170, 190)
-StatusLabel.TextSize = 11.5
+StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 190)
+StatusLabel.TextSize = 12
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
 StatusLabel.Parent = MainFrame
@@ -544,20 +536,20 @@ local isToggled = false
 local function setToggle(state)
     isToggled = state
     _G.ScriptEnabled = state
-    _G.AutoWriteEnabled = state
-    _G.AutoSubmitEnabled = state
 
-    local goal = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-    local color = state and Color3.fromRGB(40, 180, 100) or Color3.fromRGB(180, 60, 60)
+    local goal = state and UDim2.new(1, -22, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
+    local color = state and Color3.fromRGB(80, 220, 120) or Color3.fromRGB(200, 70, 70)
 
-    TweenService:Create(switchKnob, TweenInfo.new(0.2), {Position = goal}):Play()
-    TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+    TweenService:Create(switchKnob, TweenInfo.new(0.22), {Position = goal}):Play()
+    TweenService:Create(switchBg, TweenInfo.new(0.22), {BackgroundColor3 = color}):Play()
 
     if state then
         startMonitoring()
         startAutoWriteLoop()
+        logStatus("Started")
     else
         cleanupMonitoring()
+        logStatus("Stopped")
     end
 end
 
@@ -566,5 +558,6 @@ toggleBtn.MouseButton1Click:Connect(function()
 end)
 
 setToggle(false)
+logStatus("Ready")
 
 print("Moon Hub Code Copier Loaded")
