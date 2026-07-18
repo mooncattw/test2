@@ -671,7 +671,7 @@ local function createUI()
 
     SubmitBox = Instance.new("TextBox")
     SubmitBox.Name = "SubmitBox"
-    SubmitBox.Size = UDim2.new(0, 45, 0, 22)
+    SubmitBox.Size = UDim2.new(0, 55, 0, 22)
     SubmitBox.Position = UDim2.new(0, 95, 0.5, -11)
     SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
     SubmitBox.Text = "1"
