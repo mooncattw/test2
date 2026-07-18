@@ -24,6 +24,7 @@ _G.SubmitAttempts = 10
 local ScreenGui = nil
 local MainFrame = nil
 local ProgressLabel = nil
+local SubmitBox = nil
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -103,16 +104,13 @@ local function looksLikeCode(token)
     if #token < 4 or #token > 20 then return false end
     if not token:match("^%w+$") then return false end
     if isBlacklisted(token:lower()) then return false end
-
     local letterCount = 0
     for _ in token:gmatch("%a") do letterCount = letterCount + 1 end
     if letterCount < 3 then return false end
     if token:match("^%d+[smhdSMHD]$") then return false end
-
     local hasDigit = token:match("%d") ~= nil
     local isAllUpper = (token == token:upper()) and (token:match("%a") ~= nil)
     if not (hasDigit or isAllUpper) then return false end
-
     return true
 end
 
@@ -124,11 +122,7 @@ local function isLoneCode(text)
     if not text:match("^%w+$") then return false end
     if isBlacklisted(text:lower()) then return false end
     if text:match("^%d+[smhdSMHD]$") then return false end
-
-    if text:match("^%d+$") then
-        return #text >= 3
-    end
-
+    if text:match("^%d+$") then return #text >= 3 end
     local letters = 0
     for _ in text:gmatch("%a") do letters = letters + 1 end
     return letters >= 2
@@ -137,15 +131,12 @@ end
 local function extractCodesFromText(text)
     local found = {}
     if not text then return found end
-
     local trimmed = text:match("^%s*(.-)%s*$")
     trimmed = trimmed:gsub("<[^>]->", "")
-
     if isLoneCode(trimmed) then
         table.insert(found, trimmed)
         return found
     end
-
     for token in text:gmatch("%w+") do
         if looksLikeCode(token) then
             table.insert(found, token)
@@ -161,9 +152,7 @@ local function copyCodeToClipboard(code)
     elseif _G.CasingType == "Lower" then
         formattedCode = string.lower(code)
     end
-
     local success = false
-
     if setclipboard then
         pcall(function() setclipboard(formattedCode) end)
         success = true
@@ -177,7 +166,6 @@ local function copyCodeToClipboard(code)
         pcall(function() Clipboard.set(formattedCode) end)
         success = true
     end
-
     return success
 end
 
@@ -207,8 +195,9 @@ local function findCodeTextBox()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
     for _, obj in ipairs(playerGui:GetDescendants()) do
-        if _isCodeBox(obj) then
-            if isGuiVisible(obj) then _cachedBox = obj return obj end
+        if _isCodeBox(obj) and isGuiVisible(obj) then
+            _cachedBox = obj
+            return obj
         end
     end
     return nil
@@ -294,10 +283,7 @@ local function redeemViaRF(code)
     local ok, result = pcall(function()
         return rf:InvokeServer(formatted)
     end)
-    if ok then
-        return true
-    end
-    return false
+    return ok
 end
 
 local function writeAndSubmit(code)
@@ -315,34 +301,28 @@ local function writeAndSubmit(code)
     local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
     local ready = #collectedCodes >= target
     if ready and _G.AutoSubmitEnabled then
-        local count = #collectedCodes
-        local btn = false
         for i = 1, _G.SubmitAttempts do
             local box = findCodeTextBox()
             if not box then break end
-            local ok = pcall(function()
+            pcall(function()
                 box:CaptureFocus()
                 box.Text = fullText
                 box.CursorPosition = #fullText + 1
             end)
-            if not ok then
-                pcall(function() box.Text = fullText end)
-            end
+            pcall(function() box.Text = fullText end)
             pcall(function() box:ReleaseFocus(true) end)
-            if fireSubmitButton(box) then btn = true end
+            fireSubmitButton(box)
         end
         table.clear(collectedCodes)
         table.clear(collectedSeen)
         updateProgress()
     else
-        local ok = pcall(function()
+        pcall(function()
             textBox:CaptureFocus()
             textBox.Text = fullText
             textBox.CursorPosition = #fullText + 1
         end)
-        if not ok then
-            pcall(function() textBox.Text = fullText end)
-        end
+        pcall(function() textBox.Text = fullText end)
         if ready then
             table.clear(collectedCodes)
             table.clear(collectedSeen)
@@ -696,13 +676,12 @@ local function createUI()
     asLabel.TextXAlignment = Enum.TextXAlignment.Left
     asLabel.Parent = autoSubmitRow
 
-    local SubmitBox = Instance.new("TextBox")
+    SubmitBox = Instance.new("TextBox")
     SubmitBox.Name = "SubmitBox"
     SubmitBox.Size = UDim2.new(0, 55, 0, 22)
     SubmitBox.Position = UDim2.new(0, 95, 0.5, -11)
     SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
-    SubmitBox.Text = _G.SubmitAfterCount
-    SubmitBox.PlaceholderText = "1"
+    SubmitBox.Text = "1"
     SubmitBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     SubmitBox.TextSize = 12
     SubmitBox.Font = Enum.Font.GothamBold
@@ -716,7 +695,7 @@ local function createUI()
     createAnimatedStroke(SubmitBox, 1.5, 1.2)
 
     SubmitBox.FocusLost:Connect(function()
-        local n = math.floor(tonumber(SubmitBox.Text) or 0)
+        local n = math.floor(tonumber(SubmitBox.Text) or 1)
         if n < 1 then n = 1 end
         _G.SubmitAfterCount = n
         SubmitBox.Text = tostring(n)
@@ -760,7 +739,7 @@ local function createUI()
     ProgressLabel.Size = UDim2.new(0, 80, 0, 20)
     ProgressLabel.Position = UDim2.new(0.5, -40, 0, 135)
     ProgressLabel.BackgroundTransparency = 1
-    ProgressLabel.Text = "0/" .. _G.SubmitAfterCount
+    ProgressLabel.Text = "0/1"
     ProgressLabel.TextColor3 = Color3.fromRGB(40, 100, 220)
     ProgressLabel.TextSize = 14
     ProgressLabel.Font = Enum.Font.GothamBold
