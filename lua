@@ -1,4 +1,4 @@
-_G.ScriptEnabled = false
+_G.ScriptEnabled = true
 _G.CasingType = "Normal"
 _G.AutoWriteEnabled = true
 _G.AutoSubmitEnabled = true
@@ -596,8 +596,8 @@ local function createUI()
 
     MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 220, 0, 230)
-    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -115)
+    MainFrame.Size = UDim2.new(0, 220, 0, 160)
+    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -80)
     MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
     MainFrame.BackgroundTransparency = 0.25
     MainFrame.BorderSizePixel = 0
@@ -684,194 +684,9 @@ local function createUI()
     subtitle.ZIndex = 9
     subtitle.Parent = MainFrame
 
-    local CloseButton = Instance.new("TextButton")
-    CloseButton.Name = "CloseButton"
-    CloseButton.Size = UDim2.new(0, 28, 0, 28)
-    CloseButton.Position = UDim2.new(1, -30, 0, 2)
-    CloseButton.BackgroundColor3 = Color3.fromRGB(28, 18, 42)
-    CloseButton.AutoButtonColor = false
-    CloseButton.Text = "X"
-    CloseButton.TextColor3 = Color3.fromRGB(200, 190, 220)
-    CloseButton.TextSize = 14
-    CloseButton.Font = Enum.Font.GothamBold
-    CloseButton.Parent = MainFrame
-
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
-    closeCorner.Parent = CloseButton
-
-    local closeStroke = Instance.new("UIStroke")
-    closeStroke.Color = Color3.fromRGB(90, 50, 150)
-    closeStroke.Thickness = 1
-    closeStroke.Parent = CloseButton
-
-    CloseButton.MouseEnter:Connect(function()
-        CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 60)
-        CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end)
-    CloseButton.MouseLeave:Connect(function()
-        CloseButton.BackgroundColor3 = Color3.fromRGB(28, 18, 42)
-        CloseButton.TextColor3 = Color3.fromRGB(200, 190, 220)
-    end)
-
-    CloseButton.MouseButton1Click:Connect(function()
-        cleanupMonitoring()
-        ScreenGui:Destroy()
-    end)
-
-    local toggleRow = Instance.new("Frame")
-    toggleRow.Size = UDim2.new(1, -20, 0, 40)
-    toggleRow.Position = UDim2.new(0, 10, 0, 45)
-    toggleRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-    toggleRow.ZIndex = 2
-    toggleRow.Parent = MainFrame
-
-    Instance.new("UICorner", toggleRow).CornerRadius = UDim.new(0, 8)
-    createAnimatedStroke(toggleRow, 1, 1.2)
-
-    local toggleLabel = Instance.new("TextLabel")
-    toggleLabel.Size = UDim2.new(0, 60, 1, 0)
-    toggleLabel.Position = UDim2.new(0, 10, 0, 0)
-    toggleLabel.BackgroundTransparency = 1
-    toggleLabel.Text = "Stat"
-    toggleLabel.Font = Enum.Font.GothamBlack
-    toggleLabel.TextSize = 13
-    toggleLabel.TextColor3 = Color3.new(1, 1, 1)
-    toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    toggleLabel.ZIndex = 3
-    toggleLabel.Parent = toggleRow
-
-    local switchBg = Instance.new("Frame")
-    switchBg.Size = UDim2.new(0, 36, 0, 18)
-    switchBg.Position = UDim2.new(1, -46, 0.5, -9)
-    switchBg.BackgroundTransparency = 1
-    switchBg.ZIndex = 3
-    switchBg.Parent = toggleRow
-
-    Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 9)
-    createAnimatedStroke(switchBg, 2, 1.5)
-
-    local switchKnob = Instance.new("Frame")
-    switchKnob.Size = UDim2.new(0, 14, 0, 14)
-    switchKnob.Position = UDim2.new(0, 2, 0.5, -7)
-    switchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-    switchKnob.ZIndex = 4
-    switchKnob.Parent = switchBg
-
-    Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(1, 0, 1, 0)
-    toggleBtn.Position = UDim2.new(0, 0, 0, 0)
-    toggleBtn.BackgroundTransparency = 1
-    toggleBtn.Text = ""
-    toggleBtn.ZIndex = 4
-    toggleBtn.Parent = toggleRow
-
-    local function setToggle(newState)
-        _G.ScriptEnabled = newState
-        local goal = newState and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-        local color = newState and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
-        TweenService:Create(switchKnob, TweenInfo.new(0.15), {Position = goal}):Play()
-        TweenService:Create(switchBg, TweenInfo.new(0.15), {BackgroundColor3 = color}):Play()
-        if newState then
-            logStatus("Detection started.")
-        else
-            logStatus("Detection stopped.")
-        end
-    end
-
-    toggleBtn.MouseButton1Click:Connect(function()
-        setToggle(not _G.ScriptEnabled)
-    end)
-
-    local casingRow = Instance.new("Frame")
-    casingRow.Size = UDim2.new(1, -20, 0, 40)
-    casingRow.Position = UDim2.new(0, 10, 0, 95)
-    casingRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-    casingRow.ZIndex = 2
-    casingRow.Parent = MainFrame
-
-    Instance.new("UICorner", casingRow).CornerRadius = UDim.new(0, 8)
-    createAnimatedStroke(casingRow, 1, 1.2)
-
-    local casingLabel = Instance.new("TextLabel")
-    casingLabel.Size = UDim2.new(0, 80, 1, 0)
-    casingLabel.Position = UDim2.new(0, 10, 0, 0)
-    casingLabel.BackgroundTransparency = 1
-    casingLabel.Text = "Text Formatting"
-    casingLabel.Font = Enum.Font.GothamBlack
-    casingLabel.TextSize = 13
-    casingLabel.TextColor3 = Color3.new(1, 1, 1)
-    casingLabel.TextXAlignment = Enum.TextXAlignment.Left
-    casingLabel.ZIndex = 3
-    casingLabel.Parent = casingRow
-
-    local ButtonContainer = Instance.new("Frame")
-    ButtonContainer.Size = UDim2.new(1, -100, 1, 0)
-    ButtonContainer.Position = UDim2.new(0, 90, 0, 0)
-    ButtonContainer.BackgroundTransparency = 1
-    ButtonContainer.ZIndex = 3
-    ButtonContainer.Parent = casingRow
-
-    local layout = Instance.new("UIListLayout")
-    layout.FillDirection = Enum.FillDirection.Horizontal
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 5)
-    layout.Parent = ButtonContainer
-
-    local optButtons = {}
-
-    local function updateCasingUI(selectedType)
-        _G.CasingType = selectedType
-        for casing, btn in pairs(optButtons) do
-            if casing == selectedType then
-                TweenService:Create(btn, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(40, 100, 220),
-                    TextColor3 = Color3.fromRGB(255, 255, 255)
-                }):Play()
-            else
-                TweenService:Create(btn, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(20, 35, 75),
-                    TextColor3 = Color3.fromRGB(160, 160, 170)
-                }):Play()
-            end
-        end
-        logStatus("Formatting changed to: " .. selectedType)
-    end
-
-    local casingOptions = {
-        {Type = "Normal", Label = "Normal"},
-        {Type = "Upper", Label = "UPPER"},
-        {Type = "Lower", Label = "lower"}
-    }
-
-    for i, opt in ipairs(casingOptions) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 60, 0.8, 0)
-        btn.BackgroundColor3 = Color3.fromRGB(20, 35, 75)
-        btn.Text = opt.Label
-        btn.TextColor3 = Color3.fromRGB(160, 160, 170)
-        btn.TextSize = 11
-        btn.Font = Enum.Font.GothamBold
-        btn.Parent = ButtonContainer
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 6)
-        corner.Parent = btn
-
-        optButtons[opt.Type] = btn
-
-        btn.MouseButton1Click:Connect(function()
-            updateCasingUI(opt.Type)
-        end)
-    end
-
-    updateCasingUI("Normal")
-
     local autoWriteRow = Instance.new("Frame")
     autoWriteRow.Size = UDim2.new(1, -20, 0, 40)
-    autoWriteRow.Position = UDim2.new(0, 10, 0, 145)
+    autoWriteRow.Position = UDim2.new(0, 10, 0, 45)
     autoWriteRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
     autoWriteRow.ZIndex = 2
     autoWriteRow.Parent = MainFrame
@@ -925,20 +740,20 @@ local function createUI()
         TweenService:Create(awSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
         TweenService:Create(awSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
         if _G.AutoWriteEnabled then
-            logStatus("Auto-Write active (open the code box).")
+            logStatus("Auto-Write active.")
         else
             table.clear(collectedCodes)
             table.clear(collectedSeen)
             table.clear(pendingQueue)
             table.clear(pendingSeen)
             lastWrittenCode = nil
-            logStatus("Auto-Write disabled (list cleared).")
+            logStatus("Auto-Write disabled.")
         end
     end)
 
     local autoSubmitRow = Instance.new("Frame")
     autoSubmitRow.Size = UDim2.new(1, -20, 0, 40)
-    autoSubmitRow.Position = UDim2.new(0, 10, 0, 195)
+    autoSubmitRow.Position = UDim2.new(0, 10, 0, 95)
     autoSubmitRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
     autoSubmitRow.ZIndex = 2
     autoSubmitRow.Parent = MainFrame
@@ -958,10 +773,46 @@ local function createUI()
     asLabel.ZIndex = 3
     asLabel.Parent = autoSubmitRow
 
+    local asSwitchBg = Instance.new("Frame")
+    asSwitchBg.Size = UDim2.new(0, 36, 0, 18)
+    asSwitchBg.Position = UDim2.new(1, -106, 0.5, -9)
+    asSwitchBg.BackgroundTransparency = 1
+    asSwitchBg.ZIndex = 3
+    asSwitchBg.Parent = autoSubmitRow
+
+    Instance.new("UICorner", asSwitchBg).CornerRadius = UDim.new(0, 9)
+    createAnimatedStroke(asSwitchBg, 2, 1.5)
+
+    local asSwitchKnob = Instance.new("Frame")
+    asSwitchKnob.Size = UDim2.new(0, 14, 0, 14)
+    asSwitchKnob.Position = UDim2.new(1, -16, 0.5, -7)
+    asSwitchKnob.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
+    asSwitchKnob.ZIndex = 4
+    asSwitchKnob.Parent = asSwitchBg
+
+    Instance.new("UICorner", asSwitchKnob).CornerRadius = UDim.new(0, 7)
+
+    local asToggleBtn = Instance.new("TextButton")
+    asToggleBtn.Size = UDim2.new(1, 0, 1, 0)
+    asToggleBtn.Position = UDim2.new(0, 0, 0, 0)
+    asToggleBtn.BackgroundTransparency = 1
+    asToggleBtn.Text = ""
+    asToggleBtn.ZIndex = 4
+    asToggleBtn.Parent = autoSubmitRow
+
+    asToggleBtn.MouseButton1Click:Connect(function()
+        _G.AutoSubmitEnabled = not _G.AutoSubmitEnabled
+        local newPos = _G.AutoSubmitEnabled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        local newColor = _G.AutoSubmitEnabled and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
+        TweenService:Create(asSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
+        TweenService:Create(asSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
+        logStatus("Auto-Submit " .. (_G.AutoSubmitEnabled and "active" or "disabled") .. ".")
+    end)
+
     local SubmitBox = Instance.new("TextBox")
     SubmitBox.Name = "SubmitBox"
-    SubmitBox.Size = UDim2.new(0, 80, 0, 22)
-    SubmitBox.Position = UDim2.new(1, -90, 0.5, -11)
+    SubmitBox.Size = UDim2.new(0, 55, 0, 22)
+    SubmitBox.Position = UDim2.new(1, -65, 0.5, -11)
     SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
     SubmitBox.Text = _G.SubmitAfterCount
     SubmitBox.PlaceholderText = "1"
@@ -981,13 +832,13 @@ local function createUI()
         if n < 1 then n = 1 end
         _G.SubmitAfterCount = n
         SubmitBox.Text = tostring(n)
-        logStatus("Will submit after " .. n .. " code(s). (" .. #collectedCodes .. " collected)")
+        logStatus("Will submit after " .. n .. " code(s).")
     end)
 
     local StatusLabel = Instance.new("TextLabel")
     StatusLabel.Name = "StatusLabel"
     StatusLabel.Size = UDim2.new(1, -20, 0, 20)
-    StatusLabel.Position = UDim2.new(0, 10, 0, 220)
+    StatusLabel.Position = UDim2.new(0, 10, 0, 125)
     StatusLabel.BackgroundTransparency = 1
     StatusLabel.Text = "Status: Script loaded. Waiting..."
     StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 185)
@@ -1000,7 +851,7 @@ local function createUI()
     ProgressLabel = Instance.new("TextLabel")
     ProgressLabel.Name = "ProgressLabel"
     ProgressLabel.Size = UDim2.new(0, 80, 0, 20)
-    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 220)
+    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 125)
     ProgressLabel.BackgroundTransparency = 1
     ProgressLabel.Text = "0/" .. _G.SubmitAfterCount
     ProgressLabel.TextColor3 = Color3.fromRGB(40, 100, 220)
