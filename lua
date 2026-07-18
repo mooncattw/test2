@@ -32,7 +32,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-local function logStatus(message)
+local function updateProgress()
     if ProgressLabel then
         ProgressLabel.Text = #collectedCodes .. "/" .. _G.SubmitAfterCount
     end
@@ -309,6 +309,7 @@ local function writeAndSubmit(code)
     if not collectedSeen[formatted] then
         collectedSeen[formatted] = true
         table.insert(collectedCodes, formatted)
+        updateProgress()
     end
     local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
     local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
@@ -332,6 +333,7 @@ local function writeAndSubmit(code)
         end
         table.clear(collectedCodes)
         table.clear(collectedSeen)
+        updateProgress()
     else
         local ok = pcall(function()
             textBox:CaptureFocus()
@@ -344,6 +346,7 @@ local function writeAndSubmit(code)
         if ready then
             table.clear(collectedCodes)
             table.clear(collectedSeen)
+            updateProgress()
         end
     end
     return true
@@ -415,7 +418,6 @@ local function processText(text)
             table.insert(pendingQueue, code)
             triggerWrite()
         end
-        logStatus("Code detected: " .. code)
     end
 end
 
@@ -539,8 +541,8 @@ local function createUI()
 
     MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 220, 0, 140)
-    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -70)
+    MainFrame.Size = UDim2.new(0, 220, 0, 160)
+    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -80)
     MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
     MainFrame.BackgroundTransparency = 0.25
     MainFrame.BorderSizePixel = 0
@@ -620,7 +622,6 @@ local function createUI()
     subtitle.TextSize = 11
     subtitle.TextColor3 = Color3.new(1, 1, 1)
     subtitle.TextTransparency = 0.3
-    subtitle.TextXAlignment = Enum.TextXAlignment.Left
     subtitle.Parent = MainFrame
 
     local autoWriteRow = Instance.new("Frame")
@@ -673,16 +674,6 @@ local function createUI()
         local newColor = _G.AutoWriteEnabled and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
         TweenService:Create(awSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
         TweenService:Create(awSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
-        if _G.AutoWriteEnabled then
-            logStatus("Auto-Write active.")
-        else
-            table.clear(collectedCodes)
-            table.clear(collectedSeen)
-            table.clear(pendingQueue)
-            table.clear(pendingSeen)
-            lastWrittenCode = nil
-            logStatus("Auto-Write disabled.")
-        end
     end)
 
     local autoSubmitRow = Instance.new("Frame")
@@ -722,12 +713,14 @@ local function createUI()
     submitCorner.CornerRadius = UDim.new(0, 10)
     submitCorner.Parent = SubmitBox
 
+    createAnimatedStroke(SubmitBox, 1.5, 1.2)
+
     SubmitBox.FocusLost:Connect(function()
         local n = math.floor(tonumber(SubmitBox.Text) or 0)
         if n < 1 then n = 1 end
         _G.SubmitAfterCount = n
         SubmitBox.Text = tostring(n)
-        logStatus()
+        updateProgress()
     end)
 
     local asSwitchBg = Instance.new("Frame")
@@ -760,17 +753,16 @@ local function createUI()
         local newColor = _G.AutoSubmitEnabled and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
         TweenService:Create(asSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
         TweenService:Create(asSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
-        logStatus()
     end)
 
     ProgressLabel = Instance.new("TextLabel")
     ProgressLabel.Name = "ProgressLabel"
     ProgressLabel.Size = UDim2.new(0, 80, 0, 20)
-    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 105)
+    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 135)
     ProgressLabel.BackgroundTransparency = 1
     ProgressLabel.Text = "0/" .. _G.SubmitAfterCount
     ProgressLabel.TextColor3 = Color3.fromRGB(40, 100, 220)
-    ProgressLabel.TextSize = 12
+    ProgressLabel.TextSize = 14
     ProgressLabel.Font = Enum.Font.GothamBold
     ProgressLabel.TextXAlignment = Enum.TextXAlignment.Center
     ProgressLabel.Parent = MainFrame
@@ -781,7 +773,7 @@ local function init()
     createUI()
     startMonitoring()
     startAutoWriteLoop()
-    logStatus()
+    updateProgress()
 end
 
 init()
