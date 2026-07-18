@@ -292,14 +292,11 @@ local function writeAndSubmit(code)
     if not textBox then return false end
     local formatted = formatCode(code)
     pcall(function() textBox.ClearTextOnFocus = false end)
-    if not collectedSeen[formatted] then
-        collectedSeen[formatted] = true
-        table.insert(collectedCodes, formatted)
-        updateProgress()
-    end
+
     local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
     local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
     local ready = #collectedCodes >= target
+
     if ready and _G.AutoSubmitEnabled then
         for i = 1, _G.SubmitAttempts do
             local box = findCodeTextBox()
@@ -397,6 +394,11 @@ local function processText(text)
             pendingSeen[code] = true
             table.insert(pendingQueue, code)
             triggerWrite()
+        end
+        if not collectedSeen[code] then
+            collectedSeen[code] = true
+            table.insert(collectedCodes, code)
+            updateProgress()
         end
     end
 end
@@ -568,14 +570,13 @@ local function createUI()
     end)
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -20, 0, 20)
-    title.Position = UDim2.new(0, 10, 0, 5)
+    title.Size = UDim2.new(1, 0, 0, 20)
+    title.Position = UDim2.new(0, 0, 0, 5)
     title.BackgroundTransparency = 1
     title.Text = "Moon Hub"
     title.Font = Enum.Font.GothamBlack
     title.TextSize = 16
     title.TextColor3 = Color3.new(1, 1, 1)
-    title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = MainFrame
 
     local titleGrad = Instance.new("UIGradient")
@@ -594,14 +595,15 @@ local function createUI()
     end)
 
     local subtitle = Instance.new("TextLabel")
-    subtitle.Size = UDim2.new(1, -20, 0, 15)
-    subtitle.Position = UDim2.new(0, 10, 0, 23)
+    subtitle.Size = UDim2.new(1, 0, 0, 15)
+    subtitle.Position = UDim2.new(0, 0, 0, 24)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "Code Sniper"
+    subtitle.Text = "Auto Code Redeem"
     subtitle.Font = Enum.Font.GothamMedium
     subtitle.TextSize = 11
     subtitle.TextColor3 = Color3.new(1, 1, 1)
     subtitle.TextTransparency = 0.3
+    subtitle.TextXAlignment = Enum.TextXAlignment.Center
     subtitle.Parent = MainFrame
 
     local autoWriteRow = Instance.new("Frame")
@@ -678,10 +680,11 @@ local function createUI()
 
     SubmitBox = Instance.new("TextBox")
     SubmitBox.Name = "SubmitBox"
-    SubmitBox.Size = UDim2.new(0, 55, 0, 22)
+    SubmitBox.Size = UDim2.new(0, 22, 0, 22)
     SubmitBox.Position = UDim2.new(0, 95, 0.5, -11)
     SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
     SubmitBox.Text = "1"
+    SubmitBox.PlaceholderText = "..."
     SubmitBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     SubmitBox.TextSize = 12
     SubmitBox.Font = Enum.Font.GothamBold
@@ -689,13 +692,13 @@ local function createUI()
     SubmitBox.Parent = autoSubmitRow
 
     local submitCorner = Instance.new("UICorner")
-    submitCorner.CornerRadius = UDim.new(0, 10)
+    submitCorner.CornerRadius = UDim.new(0, 6)
     submitCorner.Parent = SubmitBox
 
     createAnimatedStroke(SubmitBox, 1.5, 1.2)
 
     SubmitBox.FocusLost:Connect(function()
-        local n = math.floor(tonumber(SubmitBox.Text) or 1)
+        local n = tonumber(SubmitBox.Text) or 1
         if n < 1 then n = 1 end
         _G.SubmitAfterCount = n
         SubmitBox.Text = tostring(n)
