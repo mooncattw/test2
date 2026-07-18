@@ -438,7 +438,7 @@ local function callAI(prompt)
     return nil
 end
 
--- GENİŞLETİLMİŞ VE KESİN BLACKLIST TABLOSU
+-- GENİŞLETİLMİŞ BLACKLIST TABLOSU
 local CHAT_BLACKLIST = {
     "send starting in", "starting in", "roblox", "creatorid", 
     "system message", "joined the game", "left the game", 
@@ -450,19 +450,24 @@ local function extractWords(txt)
     if not txt or type(txt) ~= "string" then return nil end
     local lowerTxt = txt:lower()
     
-    -- 1. Genel Cümle/Kelime Bazlı Filtreleme
+    -- 1. Genel Cümle/Kelime Filtresi
     for _, badWord in ipairs(CHAT_BLACKLIST) do
         if lowerTxt:find(badWord, 1, true) then
             return nil
         end
     end
     
-    -- 2. "Base 1", "Base 2", "Base 12" gibi dinamik base isimlerini engelleme
+    -- 2. "Base 1", "Base 2" Filtresi
     if lowerTxt:match("base%s*%d+") then
         return nil
     end
     
-    -- 3. Oyundaki aktif oyuncu adlarını dinamik olarak eşleştirip engelleme
+    -- 3. Gelişmiş Zaman/Süre Filtresi ("1s ago", "2m ago", "10h ago", "3d ago")
+    if lowerTxt:match("%d+[smhd]%s+ago") or lowerTxt:match("%d+[smhd]ago") or lowerTxt:find("ago", 1, true) then
+        return nil
+    end
+    
+    -- 4. Dinamik Oyuncu Adı (Roblox User) Filtresi
     for _, player in ipairs(Players:GetPlayers()) do
         local pName = player.Name:lower()
         local pDisp = player.DisplayName:lower()
@@ -471,17 +476,12 @@ local function extractWords(txt)
         end
     end
     
-    -- 4. Zaman kalıpları filtreleme ("1s ago", "2m ago")
-    if lowerTxt:match("%d+[smhd]%s+ago") or lowerTxt:match("%d+[smhd]ago") then
-        return nil
-    end
-    
     local words = {}
     for w in txt:gmatch("%S+") do
         local clean = w:gsub("[^A-Za-z0-9]", "")
         local cleanLower = clean:lower()
         
-        -- Dinamik sayı filtreleme (500k, 10m, 2500 vb.)
+        -- Sayı filtreleme (K ve M harfli kısaltmalar dahil)
         local isNumberPattern = cleanLower:match("^%d+[km]%+?$") or cleanLower:match("^%d+$")
         
         if #clean >= 2 and not isNumberPattern then
@@ -490,7 +490,18 @@ local function extractWords(txt)
             
             local isBlacklisted = false
             for _, badWord in ipairs(CHAT_BLACKLIST) do
-                if cleanLower == badWord then isBlacklisted = true; break end
+                if cleanLower == badWord or cleanLower == "ago" then 
+                    isBlacklisted = true
+                    break 
+                end
+            end
+            
+            -- Kelime bazında son kez aktif oyuncu ismi kontrolü
+            for _, player in ipairs(Players:GetPlayers()) do
+                if cleanLower == player.Name:lower() or cleanLower == player.DisplayName:lower() then
+                    isBlacklisted = true
+                    break
+                end
             end
             
             if (isUpper or isLower) and not isBlacklisted then
