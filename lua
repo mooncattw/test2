@@ -438,24 +438,31 @@ local function callAI(prompt)
     return nil
 end
 
--- YENİ GELİŞTİRİLMİŞ FİLTRE MOTORU
+-- GENİŞLETİLMİŞ SÜPER KARA LİSTE
 local CHAT_BLACKLIST = {
     "send starting in", "starting in", "font color", "size=", 
     "font face", "roblox", "creatorid", "system message", 
-    "joined the game", "left the game", "setcreatorid"
+    "joined the game", "left the game", "setcreatorid",
+    "locked your base for", "locked your base", "fln"
 }
 
 local function cleanText(txt)
     if not txt then return "" end
-    -- Tüm RichText HTML/Font taglarını temizler (<font ...>, </font>)
-    return txt:gsub("<[^>]+>", "")
+    -- Arayüz etiketlerini (<font ...>, </font>) temizle
+    local clean = txt:gsub("<[^>]+>", "")
+    
+    -- Oyuncu adlarının oluşturduğu kirliliği önlemek için "[KullaniciAdi]: " yapısını temizle
+    clean = clean:gsub("^%s*%[[^%]]+%]%s*:%s*", "") 
+    clean = clean:gsub("^%s*[^:]+%s*:%s*", "")
+    
+    return clean
 end
 
 local function extractWords(txt)
     local cleanedTxt = cleanText(txt)
     local lowerTxt = cleanedTxt:lower()
     
-    -- 1. Kelime bazlı genel karaliste kontrolü
+    -- 1. Cümle bazlı genel filtreleme
     for _, badWord in ipairs(CHAT_BLACKLIST) do
         if lowerTxt:find(badWord, 1, true) then
             return nil
@@ -464,19 +471,18 @@ local function extractWords(txt)
     
     local words = {}
     for w in cleanedTxt:gmatch("%S+") do
-        -- Sadece harf ve sayıları tut, noktalama işaretlerini sil
         local clean = w:gsub("[^A-Za-z0-9]", "")
         local cleanLower = clean:lower()
         
-        -- DİNAMİK SAYI FİLTRESİ (Gelişmiş regex kontrolü)
-        -- "5k", "10k", "500k", "1m", "100k+", "25000" gibi tüm sayı varyasyonlarını tamamen bloklar
+        -- DİNAMİK SAYI FİLTRESİ
+        -- 5k, 10k, 500k, 1m, 100k+, 25000 vb. tüm sayı kombinasyonlarını eler
         local isNumberPattern = cleanLower:match("^%d+[km]%+?$") or cleanLower:match("^%d+$")
         
         if #clean >= 2 and not isNumberPattern then
             local isUpper = clean == clean:upper() and clean:match("[A-Z]")
             local isLower = clean == clean:lower() and clean:match("[a-z]") and #clean >= 3
             
-            -- Kara listedeki tekil kelimelerle eşleşme kontrolü (Örn: "font")
+            -- Tekil kelime filtresi
             local isBlacklisted = false
             for _, badWord in ipairs(CHAT_BLACKLIST) do
                 if cleanLower == badWord then isBlacklisted = true; break end
