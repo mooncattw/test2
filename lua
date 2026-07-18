@@ -23,7 +23,6 @@ _G.SubmitAttempts = 10
 
 local ScreenGui = nil
 local MainFrame = nil
-local ProgressLabel = nil
 local SubmitBox = nil
 
 local Players = game:GetService("Players")
@@ -32,12 +31,6 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-
-local function updateProgress()
-    if ProgressLabel then
-        ProgressLabel.Text = #collectedCodes .. "/" .. _G.SubmitAfterCount
-    end
-end
 
 local function isGuiVisible(obj)
     if not obj or not obj.Visible then return false end
@@ -312,7 +305,6 @@ local function writeAndSubmit(code)
         end
         table.clear(collectedCodes)
         table.clear(collectedSeen)
-        updateProgress()
     else
         pcall(function()
             textBox:CaptureFocus()
@@ -323,7 +315,6 @@ local function writeAndSubmit(code)
         if ready then
             table.clear(collectedCodes)
             table.clear(collectedSeen)
-            updateProgress()
         end
     end
     return true
@@ -398,7 +389,6 @@ local function processText(text)
         if not collectedSeen[code] then
             collectedSeen[code] = true
             table.insert(collectedCodes, code)
-            updateProgress()
         end
     end
 end
@@ -523,8 +513,8 @@ local function createUI()
 
     MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 220, 0, 160)
-    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -80)
+    MainFrame.Size = UDim2.new(0, 220, 0, 140)
+    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -70)
     MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
     MainFrame.BackgroundTransparency = 0.25
     MainFrame.BorderSizePixel = 0
@@ -570,13 +560,14 @@ local function createUI()
     end)
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 20)
-    title.Position = UDim2.new(0, 0, 0, 5)
+    title.Size = UDim2.new(0, 120, 0, 20)
+    title.Position = UDim2.new(0, 10, 0, 5)
     title.BackgroundTransparency = 1
     title.Text = "Moon Hub"
     title.Font = Enum.Font.GothamBlack
     title.TextSize = 16
     title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = MainFrame
 
     local titleGrad = Instance.new("UIGradient")
@@ -595,15 +586,15 @@ local function createUI()
     end)
 
     local subtitle = Instance.new("TextLabel")
-    subtitle.Size = UDim2.new(1, 0, 0, 15)
-    subtitle.Position = UDim2.new(0, 0, 0, 24)
+    subtitle.Size = UDim2.new(0, 120, 0, 15)
+    subtitle.Position = UDim2.new(0, 10, 0, 24)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "Auto Code Redeem"
+    subtitle.Text = "Auto Redeem Code"
     subtitle.Font = Enum.Font.GothamMedium
     subtitle.TextSize = 11
     subtitle.TextColor3 = Color3.new(1, 1, 1)
     subtitle.TextTransparency = 0.3
-    subtitle.TextXAlignment = Enum.TextXAlignment.Center
+    subtitle.TextXAlignment = Enum.TextXAlignment.Left
     subtitle.Parent = MainFrame
 
     local autoWriteRow = Instance.new("Frame")
@@ -680,7 +671,7 @@ local function createUI()
 
     SubmitBox = Instance.new("TextBox")
     SubmitBox.Name = "SubmitBox"
-    SubmitBox.Size = UDim2.new(0, 40, 0, 22)
+    SubmitBox.Size = UDim2.new(0, 45, 0, 22)
     SubmitBox.Position = UDim2.new(0, 95, 0.5, -11)
     SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
     SubmitBox.Text = "1"
@@ -702,7 +693,6 @@ local function createUI()
         if n < 1 then n = 1 end
         _G.SubmitAfterCount = n
         SubmitBox.Text = tostring(n)
-        updateProgress()
     end)
 
     local asSwitchBg = Instance.new("Frame")
@@ -736,18 +726,6 @@ local function createUI()
         TweenService:Create(asSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
         TweenService:Create(asSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
     end)
-
-    ProgressLabel = Instance.new("TextLabel")
-    ProgressLabel.Name = "ProgressLabel"
-    ProgressLabel.Size = UDim2.new(0, 80, 0, 20)
-    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 135)
-    ProgressLabel.BackgroundTransparency = 1
-    ProgressLabel.Text = "0/1"
-    ProgressLabel.TextColor3 = Color3.fromRGB(40, 100, 220)
-    ProgressLabel.TextSize = 14
-    ProgressLabel.Font = Enum.Font.GothamBold
-    ProgressLabel.TextXAlignment = Enum.TextXAlignment.Center
-    ProgressLabel.Parent = MainFrame
 end
 
 local function init()
@@ -755,7 +733,6 @@ local function init()
     createUI()
     startMonitoring()
     startAutoWriteLoop()
-    updateProgress()
 end
 
 init()
