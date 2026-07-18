@@ -12,17 +12,17 @@ local LP = Players.LocalPlayer
 
 -- ============ RENKLER ============
 local COLORS = {
-    BG = Color3.fromRGB(25, 35, 65),
-    CARD = Color3.fromRGB(35, 45, 75),
-    ACCENT = Color3.fromRGB(100, 150, 255),
+    BG = Color3.fromRGB(35, 45, 85),
+    CARD = Color3.fromRGB(45, 55, 95),
+    ACCENT = Color3.fromRGB(110, 160, 255),
     TEXT = Color3.new(1, 1, 1),
-    TEXT_DIM = Color3.new(0.7, 0.7, 0.7),
-    STROKE_START = Color3.fromRGB(50, 80, 150),
-    STROKE_MID = Color3.fromRGB(100, 150, 255),
-    TOGGLE_OFF = Color3.fromRGB(40, 50, 90),
-    TOGGLE_ON = Color3.fromRGB(100, 150, 255),
-    BUTTON = Color3.fromRGB(40, 50, 90),
-    BUTTON_ACTIVE = Color3.fromRGB(100, 150, 255),
+    TEXT_DIM = Color3.new(0.85, 0.85, 0.9),
+    STROKE_START = Color3.fromRGB(80, 120, 200),
+    STROKE_MID = Color3.fromRGB(130, 180, 255),
+    TOGGLE_OFF = Color3.fromRGB(55, 65, 110),
+    TOGGLE_ON = Color3.fromRGB(110, 160, 255),
+    BUTTON = Color3.fromRGB(55, 65, 110),
+    BUTTON_ACTIVE = Color3.fromRGB(120, 170, 255),
 }
 
 -- ============ AYARLAR ============
@@ -57,8 +57,8 @@ local autoTPEnabled = false
 local autoTPHeight = 20
 local autoTPConn = nil
 local setAutoTPVisual = nil
-local guiScale = 1.0
-local mbScale = 1.0
+local guiScale = 0.75
+local mbScale = 0.85
 
 local aimbot2Enabled = false
 local aimbot2Cooldown = false
@@ -503,7 +503,6 @@ local function stopAutoMedReset()
     if Conns.autoMedReset then Conns.autoMedReset:Disconnect(); Conns.autoMedReset=nil end
 end
 
--- Çarpışma devre dışı
 RunService.Stepped:Connect(function()
     for _,p in ipairs(Players:GetPlayers()) do
         if p~=LP and p.Character then
@@ -512,7 +511,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Hareket sistemi
 RunService.RenderStepped:Connect(function()
     local char=LP.Character; if not char then return end
     local hum=char:FindFirstChildOfClass("Humanoid"); local hrp=char:FindFirstChild("HumanoidRootPart")
@@ -530,7 +528,6 @@ RunService.RenderStepped:Connect(function()
     if speedLabel then speedLabel.Text=string.format("Speed: %.1f",Vector3.new(hrp.Velocity.X,0,hrp.Velocity.Z).Magnitude) end
 end)
 
--- Auto Left/Right
 local alConn,arConn=nil,nil; local alPhase,arPhase=1,1
 
 local function stopAutoLeft()
@@ -612,7 +609,7 @@ local function setupSpeedIndicator(char)
     speedLabel=Instance.new("TextLabel",bb)
     speedLabel.Size=UDim2.new(1,0,0,20); speedLabel.BackgroundTransparency=1
     speedLabel.Text="Speed: 0"; speedLabel.TextColor3=COLORS.TEXT
-    speedLabel.Font=Enum.Font.SourceSans; speedLabel.TextScaled=true
+    speedLabel.Font=Enum.Font.Gotham; speedLabel.TextScaled=true
     speedLabel.TextStrokeTransparency=0; speedLabel.TextStrokeColor3=Color3.new(0,0,0)
 end
 
@@ -638,7 +635,6 @@ local function stopAntiRagdoll()
     if Conns.antiRag then Conns.antiRag:Disconnect(); Conns.antiRag=nil end
 end
 
--- Sonsuz Zıplama
 local holdJumpPressed = false; local holdJumpActive = false
 local function applyInfJumpBoost(boost)
     if not infJumpEnabled then return end
@@ -671,7 +667,6 @@ local function stopUnwalk()
     if c and unwalkSavedAnimate then unwalkSavedAnimate:Clone().Parent=c; unwalkSavedAnimate=nil end
 end
 
--- Drop Brainrot
 local _wfConns={}
 local function runDrop()
     if dropActive then return end
@@ -712,7 +707,6 @@ local function runDrop()
     end)
 end
 
--- Auto TP
 local function doAutoTPDown(force)
     local char=LP.Character; if not char then return end
     local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
@@ -737,8 +731,6 @@ end
 
 local function runTPFloor() pcall(function() doAutoTPDown(true) end) end
 
--- Stretch Rez
-local defLightBrightness,defLightClock,defLightAmbient
 local function enableStretchRez()
     stretchRezEnabled=true; workspace.CurrentCamera.FieldOfView=107
     if stretchRezConn then stretchRezConn:Disconnect() end
@@ -754,7 +746,6 @@ local function disableStretchRez()
     workspace.CurrentCamera.FieldOfView=70
 end
 
--- Anti Lag
 local function applyAntiLagDerender(obj)
     pcall(function()
         if obj:IsA("Accessory") or obj:IsA("Hat") then obj:Destroy()
@@ -769,9 +760,6 @@ end
 
 local function enableAntiLag()
     removeAccessoriesEnabled=true; antiLagEnabled=true
-    defLightBrightness=defLightBrightness or Lighting.Brightness
-    defLightClock=defLightClock or Lighting.ClockTime
-    defLightAmbient=defLightAmbient or Lighting.OutdoorAmbient
     Lighting.GlobalShadows=false; Lighting.FogEnd=1e10; Lighting.Brightness=1
     Lighting.EnvironmentDiffuseScale=0; Lighting.EnvironmentSpecularScale=0
     for _,e in pairs(Lighting:GetChildren()) do
@@ -787,15 +775,8 @@ end
 local function disableAntiLag()
     removeAccessoriesEnabled=false; antiLagEnabled=false
     if antiLagDescConn then antiLagDescConn:Disconnect(); antiLagDescConn=nil end
-    pcall(function()
-        if defLightBrightness then Lighting.Brightness=defLightBrightness end
-        if defLightClock then Lighting.ClockTime=defLightClock end
-        if defLightAmbient then Lighting.OutdoorAmbient=defLightAmbient end
-        Lighting.ExposureCompensation=0
-    end)
 end
 
--- Medusa Counter
 local function findMedusa()
     local c=LP.Character; if not c then return nil end
     for _,t in ipairs(c:GetChildren()) do if t:IsA("Tool") then local n=t.Name:lower(); if n:find("medusa") or n:find("head") or n:find("stone") then return t end end end
@@ -827,7 +808,6 @@ local function stopMedusaCounter()
     for _,c in pairs(Conns.anchor) do pcall(function() c:Disconnect() end) end; Conns.anchor={}
 end
 
--- Bat Counter
 local BAT_COUNTER_SLAP_LIST={"Bat","Slap","Iron Slap","Gold Slap","Diamond Slap","Emerald Slap","Ruby Slap","Dark Matter Slap","Flame Slap","Nuclear Slap","Galaxy Slap","Glitched Slap"}
 local function findBatForCounter()
     local c=LP.Character; if not c then return nil end
@@ -872,7 +852,6 @@ stopBatCounter=function()
     batCounterDebounce=false
 end
 
--- ============ TOGGLE FONKSİYONLARI ============
 local function enableAutoBat()
     if autoLeftEnabled then autoLeftEnabled=false; stopAutoLeft() end
     if autoRightEnabled then autoRightEnabled=false; stopAutoRight() end
@@ -925,7 +904,6 @@ local function queueAimbot2Start()
     enableAimbot2()
 end
 
--- ============ KARAKTER YÜKLEME ============
 LP.CharacterAdded:Connect(function(char)
     task.wait(0.5); setupSpeedIndicator(char)
     if medusaCounterEnabled then setupMedusa(char) end
@@ -936,7 +914,6 @@ LP.CharacterAdded:Connect(function(char)
 end)
 if LP.Character then setupSpeedIndicator(LP.Character) end
 
--- ============ MOD AYARLARI ============
 local function refreshSpeedModeLabel()
     if modeValLbl then modeValLbl.Text = laggerToggled and (laggerPhase==2 and "Lagger Carry" or "Lagger Normal") or (speedMode and "Carry" or "Normal") end
 end
@@ -971,11 +948,9 @@ local function applyMbScale(scale)
     mbScale = math.clamp(scale, 0.3, 3.0)
 end
 
--- ============ ANA GUI ============
 local _mainFrame = nil
 
 local function buildGui()
-    -- Eski GUI'leri sil
     local oldCore = game:GetService("CoreGui"):FindFirstChild("MoonHub")
     if oldCore then oldCore:Destroy() end
     local pg = LP:FindFirstChild("PlayerGui")
@@ -994,7 +969,6 @@ local function buildGui()
         gui.Parent = LP:WaitForChild("PlayerGui")
     end
 
-    -- Animasyonlu stroke oluşturucu
     local function addAnimatedStroke(frame, thickness)
         local stroke = Instance.new("UIStroke", frame)
         stroke.Thickness = thickness or 1.5
@@ -1019,57 +993,34 @@ local function buildGui()
         return stroke
     end
 
-    -- Baloncuk butonu
     local bubble = Instance.new("TextButton", gui)
     bubble.Name = "MoonHubBubble"
-    bubble.Size = UDim2.new(0, 110, 0, 30)
-    bubble.Position = UDim2.new(0, 20, 0.5, -15)
+    bubble.Size = UDim2.new(0, 100, 0, 28)
+    bubble.Position = UDim2.new(0, 20, 0.5, -14)
     bubble.BackgroundColor3 = COLORS.BG
-    bubble.BackgroundTransparency = 0.25
+    bubble.BackgroundTransparency = 0.2
     bubble.BorderSizePixel = 0
     bubble.Text = "Moon Hub"
     bubble.TextColor3 = COLORS.TEXT
-    bubble.Font = Enum.Font.SourceSans
+    bubble.Font = Enum.Font.GothamBold
     bubble.TextSize = 14
     bubble.ZIndex = 20
     Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 8)
     addAnimatedStroke(bubble, 1.5)
 
-    -- Baloncuk sürüklenebilir
-    do
-        local dn, ds, sp2, di2 = false
-        bubble.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                dn = true; ds = i.Position; sp2 = bubble.Position
-                i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dn = false end end)
-            end
-        end)
-        bubble.InputChanged:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then di2 = i end
-        end)
-        UIS.InputChanged:Connect(function(i)
-            if i == di2 and dn then
-                local delta = i.Position - ds
-                bubble.Position = UDim2.new(sp2.X.Scale, sp2.X.Offset + delta.X, sp2.Y.Scale, sp2.Y.Offset + delta.Y)
-            end
-        end)
-    end
-
-    -- Ana çerçeve
     local main = Instance.new("Frame", gui)
     main.Name = "Main"
-    main.Size = UDim2.new(0, math.floor(320 * guiScale), 0, math.floor(500 * guiScale))
-    main.Position = UDim2.new(0.5, -160, 0.5, -250)
+    main.Size = UDim2.new(0, math.floor(280 * guiScale), 0, math.floor(460 * guiScale))
+    main.Position = UDim2.new(0.5, -140, 0.5, -230)
     main.BackgroundColor3 = COLORS.BG
-    main.BackgroundTransparency = 0.04
+    main.BackgroundTransparency = 0.05
     main.BorderSizePixel = 0
     main.ClipsDescendants = true
     main.Active = true
-    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
-    addAnimatedStroke(main, 2.5)
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+    addAnimatedStroke(main, 2.8)
     _mainFrame = main
 
-    -- Ana çerçeve sürüklenebilir
     local function dragFrame(frame)
         local dn, ds, sp = false
         frame.InputBegan:Connect(function(i)
@@ -1092,79 +1043,46 @@ local function buildGui()
     end
     dragFrame(main)
 
-    -- Başlık
     local header = Instance.new("Frame", main)
-    header.Size = UDim2.new(1, 0, 0, 40)
+    header.Size = UDim2.new(1, 0, 0, 36)
     header.BackgroundTransparency = 1
 
     local ttl = Instance.new("TextLabel", header)
-    ttl.Size = UDim2.new(0, 200, 1, 0)
-    ttl.Position = UDim2.new(0, 14, 0, 0)
+    ttl.Size = UDim2.new(0, 180, 1, 0)
+    ttl.Position = UDim2.new(0, 12, 0, 0)
     ttl.BackgroundTransparency = 1
     ttl.Text = "Moon Hub"
     ttl.TextColor3 = COLORS.TEXT
-    ttl.Font = Enum.Font.SourceSansBold
-    ttl.TextSize = 18
+    ttl.Font = Enum.Font.GothamBold
+    ttl.TextSize = 17
     ttl.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Kapat butonu
     local closeBtn = Instance.new("TextButton", header)
     closeBtn.Size = UDim2.new(0, 24, 0, 24)
     closeBtn.Position = UDim2.new(1, -32, 0.5, -12)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     closeBtn.BorderSizePixel = 0
     closeBtn.Text = "X"
     closeBtn.TextColor3 = COLORS.TEXT
-    closeBtn.Font = Enum.Font.SourceSansBold
-    closeBtn.TextSize = 13
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 14
     Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
     addAnimatedStroke(closeBtn, 1)
-    closeBtn.MouseEnter:Connect(function()
-        TS:Create(closeBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(60, 60, 60), TextColor3 = COLORS.ACCENT}):Play()
-    end)
-    closeBtn.MouseLeave:Connect(function()
-        TS:Create(closeBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextColor3 = COLORS.TEXT}):Play()
-    end)
     closeBtn.MouseButton1Click:Connect(function() main.Visible = false end)
 
-    -- Ayırıcı çizgi
-    local sep = Instance.new("Frame", main)
-    sep.Size = UDim2.new(1, -18, 0, 2)
-    sep.Position = UDim2.new(0, 9, 0, 40)
-    sep.BackgroundColor3 = COLORS.ACCENT
-    sep.BorderSizePixel = 0
-    local sepGrad = Instance.new("UIGradient", sep)
-    sepGrad.Rotation = 0
-    sepGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 40)),
-        ColorSequenceKeypoint.new(0.5, COLORS.STROKE_MID),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 40))
-    })
-    task.spawn(function()
-        while sep and sep.Parent do
-            TS:Create(sep, TweenInfo.new(1), {BackgroundTransparency = 0.35}):Play()
-            task.wait(1)
-            TS:Create(sep, TweenInfo.new(1), {BackgroundTransparency = 0}):Play()
-            task.wait(1)
-        end
-    end)
-
-    -- İçerik alanı (tek scrollable frame)
     local content = Instance.new("ScrollingFrame", main)
     content.Name = "Content"
-    content.Size = UDim2.new(1, -16, 1, -50)
-    content.Position = UDim2.new(0, 8, 0, 48)
+    content.Size = UDim2.new(1, -14, 1, -48)
+    content.Position = UDim2.new(0, 7, 0, 42)
     content.BackgroundTransparency = 1
     content.BorderSizePixel = 0
-    content.ScrollBarThickness = 6
-    content.ScrollBarImageTransparency = 0.5
-    content.CanvasSize = UDim2.new(0, 0, 0, 0)
+    content.ScrollBarThickness = 5
     content.AutomaticCanvasSize = Enum.AutomaticSize.Y
     content.ClipsDescendants = true
 
     local contentList = Instance.new("UIListLayout", content)
     contentList.SortOrder = Enum.SortOrder.LayoutOrder
-    contentList.Padding = UDim.new(0, 6)
+    contentList.Padding = UDim.new(0, 5)
 
     local contentPad = Instance.new("UIPadding", content)
     contentPad.PaddingLeft = UDim.new(0, 4)
@@ -1172,7 +1090,6 @@ local function buildGui()
     contentPad.PaddingTop = UDim.new(0, 4)
     contentPad.PaddingBottom = UDim.new(0, 4)
 
-    -- UI yardımcı fonksiyonları
     local lo = 0
     local function LO()
         lo = lo + 1
@@ -1187,12 +1104,6 @@ local function buildGui()
         f.LayoutOrder = LO()
         Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
         addAnimatedStroke(f, 1)
-        f.MouseEnter:Connect(function()
-            TS:Create(f, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(45, 55, 85)}):Play()
-        end)
-        f.MouseLeave:Connect(function()
-            TS:Create(f, TweenInfo.new(0.08), {BackgroundColor3 = COLORS.CARD}):Play()
-        end)
         return f
     end
 
@@ -1203,8 +1114,8 @@ local function buildGui()
         l.BackgroundTransparency = 1
         l.Text = txt
         l.TextColor3 = COLORS.TEXT
-        l.Font = Enum.Font.SourceSans
-        l.TextSize = 12
+        l.Font = Enum.Font.Gotham
+        l.TextSize = 13
         l.TextXAlignment = Enum.TextXAlignment.Left
         return l
     end
@@ -1264,23 +1175,19 @@ local function buildGui()
         local tb = Instance.new("TextBox", parent)
         tb.Size = UDim2.new(0, w or 44, 0, 20)
         tb.Position = UDim2.new(1, -(xOff or 54), 0.5, -10)
-        tb.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
+        tb.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
         tb.BorderSizePixel = 0
         tb.Text = tostring(default)
         tb.TextColor3 = COLORS.TEXT
-        tb.Font = Enum.Font.SourceSans
-        tb.TextSize = 12
+        tb.Font = Enum.Font.Gotham
+        tb.TextSize = 13
         tb.ClearTextOnFocus = false
         tb.ZIndex = 5
         Instance.new("UICorner", tb).CornerRadius = UDim.new(0, 6)
         local bs = Instance.new("UIStroke", tb)
         bs.Color = COLORS.TOGGLE_OFF
         bs.Thickness = 1
-        tb.Focused:Connect(function()
-            TS:Create(bs, TweenInfo.new(0.12), {Color = COLORS.STROKE_MID}):Play()
-        end)
         tb.FocusLost:Connect(function()
-            TS:Create(bs, TweenInfo.new(0.12), {Color = COLORS.TOGGLE_OFF}):Play()
             if cb then
                 local n = tonumber(tb.Text)
                 if n then cb(n) else tb.Text = tostring(default) end
@@ -1289,85 +1196,19 @@ local function buildGui()
         return tb
     end
 
-    local GAMEPAD_KEYS = {
-        [Enum.KeyCode.ButtonA]=true,[Enum.KeyCode.ButtonB]=true,[Enum.KeyCode.ButtonX]=true,
-        [Enum.KeyCode.ButtonY]=true,[Enum.KeyCode.ButtonL1]=true,[Enum.KeyCode.ButtonR1]=true,
-        [Enum.KeyCode.ButtonL2]=true,[Enum.KeyCode.ButtonR2]=true,[Enum.KeyCode.ButtonL3]=true,
-        [Enum.KeyCode.ButtonR3]=true,[Enum.KeyCode.ButtonStart]=true,[Enum.KeyCode.ButtonSelect]=true,
-        [Enum.KeyCode.DPadUp]=true,[Enum.KeyCode.DPadDown]=true,[Enum.KeyCode.DPadLeft]=true,
-        [Enum.KeyCode.DPadRight]=true
-    }
-
-    local function isGamepadInput(inp)
-        return inp and inp.UserInputType and inp.UserInputType.Name:match("^Gamepad") ~= nil
-    end
-
-    local function isBindableInput(inp)
-        if not inp or inp.KeyCode == Enum.KeyCode.Unknown then return false end
-        if inp.UserInputType == Enum.UserInputType.Keyboard then return true end
-        return isGamepadInput(inp) and GAMEPAD_KEYS[inp.KeyCode] == true
-    end
-
-    local function kbMatch(entry, kc)
-        return kc and (kc == entry.kb or (entry.gp and kc == entry.gp))
-    end
-
-    local function mkKB(parent, kbEntry, cb)
-        local btn = Instance.new("TextButton", parent)
-        btn.Size = UDim2.new(0, 46, 0, 20)
-        btn.Position = UDim2.new(1, -52, 0.5, -10)
-        btn.BackgroundColor3 = Color3.fromRGB(14, 14, 14)
-        btn.BorderSizePixel = 0
-        local function getLabel()
-            return (kbEntry.gp and kbEntry.gp.Name) or (kbEntry.kb and kbEntry.kb.Name) or "None"
-        end
-        btn.Text = getLabel()
-        btn.TextColor3 = COLORS.TEXT
-        btn.Font = Enum.Font.SourceSans
-        btn.TextSize = 11
-        btn.ZIndex = 5
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        local bs = Instance.new("UIStroke", btn)
-        bs.Color = COLORS.TOGGLE_OFF
-        bs.Thickness = 1
-        local li = false; local lc = nil; local pv = btn.Text; local listenStart = 0
-        btn.Activated:Connect(function()
-            if li then
-                li = false; _anyKeyListening = false
-                if lc then lc:Disconnect(); lc = nil end
-                btn.Text = pv; btn.TextColor3 = COLORS.TEXT
-                return
-            end
-            pv = btn.Text; li = true; _anyKeyListening = true; listenStart = tick()
-            btn.Text = "..."; btn.TextColor3 = COLORS.TEXT
-            lc = UIS.InputBegan:Connect(function(inp)
-                if not li then return end
-                if inp.KeyCode == Enum.KeyCode.Escape then
-                    li = false; _anyKeyListening = false
-                    if lc then lc:Disconnect(); lc = nil end
-                    btn.Text = pv; btn.TextColor3 = COLORS.TEXT
-                    return
-                end
-                local isGp = isGamepadInput(inp)
-                if isGp and tick() - listenStart < 0.15 then return end
-                if not isBindableInput(inp) then return end
-                btn.Text = inp.KeyCode.Name; pv = inp.KeyCode.Name; btn.TextColor3 = COLORS.TEXT
-                li = false; _anyKeyListening = false
-                if lc then lc:Disconnect(); lc = nil end
-                if cb then cb(inp.KeyCode, isGp) end
-            end)
-        end)
-        return btn
-    end
-
     local function mkToggleKB(parent, txt, kbEntry, onToggle, onKB)
         local row = mkRow(parent, 30)
         mkLabel(row, txt)
         if kbEntry then
-            mkKB(row, kbEntry, function(k, isGp)
-                if isGp then kbEntry.gp = k; kbEntry.kb = nil else kbEntry.kb = k; kbEntry.gp = nil end
-                if onKB then onKB(k, isGp) end
-            end)
+            local btn = Instance.new("TextButton", row)
+            btn.Size = UDim2.new(0, 46, 0, 20)
+            btn.Position = UDim2.new(1, -100, 0.5, -10)
+            btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            btn.Text = kbEntry.kb and kbEntry.kb.Name or "None"
+            btn.TextColor3 = COLORS.TEXT
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 11
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
         end
         local pill, dot = mkPill(row, kbEntry and 108 or 44)
         local on = false
@@ -1389,31 +1230,13 @@ local function buildGui()
         return sv
     end
 
-    -- Progress bar
     local pbFrame = Instance.new("Frame", gui)
     pbFrame.Size = UDim2.new(0, 260, 0, 46)
     pbFrame.Position = UDim2.new(0.5, -130, 1, -60)
-    pbFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+    pbFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     pbFrame.BorderSizePixel = 0
-    pbFrame.Active = true
     Instance.new("UICorner", pbFrame).CornerRadius = UDim.new(0, 8)
     addAnimatedStroke(pbFrame, 1.5)
-
-    local dn, ds, sp, di = false
-    pbFrame.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dn = true; ds = i.Position; sp = pbFrame.Position
-            i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dn = false end end)
-        end
-    end)
-    pbFrame.InputChanged:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then di = i end
-    end)
-    UIS.InputChanged:Connect(function(i)
-        if i == di and dn then
-            pbFrame.Position = UDim2.new(sp.X.Scale, sp.X.Offset + (i.Position.X - ds.X), sp.Y.Scale, sp.Y.Offset + (i.Position.Y - ds.Y))
-        end
-    end)
 
     progressPct = Instance.new("TextLabel", pbFrame)
     progressPct.Size = UDim2.new(0, 40, 0, 14)
@@ -1421,9 +1244,8 @@ local function buildGui()
     progressPct.BackgroundTransparency = 1
     progressPct.Text = "0%"
     progressPct.TextColor3 = COLORS.TEXT
-    progressPct.Font = Enum.Font.SourceSans
+    progressPct.Font = Enum.Font.Gotham
     progressPct.TextSize = 12
-    progressPct.TextXAlignment = Enum.TextXAlignment.Left
 
     progressRadLbl = Instance.new("TextLabel", pbFrame)
     progressRadLbl.Size = UDim2.new(0, 100, 0, 14)
@@ -1431,78 +1253,55 @@ local function buildGui()
     progressRadLbl.BackgroundTransparency = 1
     progressRadLbl.Text = string.format("Radius: %.2g", Steal.StealRadius)
     progressRadLbl.TextColor3 = COLORS.TEXT
-    progressRadLbl.Font = Enum.Font.SourceSans
+    progressRadLbl.Font = Enum.Font.Gotham
     progressRadLbl.TextSize = 12
     progressRadLbl.TextXAlignment = Enum.TextXAlignment.Right
 
     local pbg = Instance.new("Frame", pbFrame)
     pbg.Size = UDim2.new(1, -16, 0, 10)
     pbg.Position = UDim2.new(0, 8, 0, 28)
-    pbg.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
-    pbg.BorderSizePixel = 0
+    pbg.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
     Instance.new("UICorner", pbg).CornerRadius = UDim.new(1, 0)
     progressFill = Instance.new("Frame", pbg)
     progressFill.Size = UDim2.new(0, 0, 1, 0)
     progressFill.BackgroundColor3 = COLORS.ACCENT
-    progressFill.BorderSizePixel = 0
     Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
 
-    -- ============ TÜM AYARLAR (TEK SAYFADA) ============
-
-    -- Hız Ayarları
     do
         local row = mkRow(content, 30)
         mkLabel(row, "Normal Speed")
-        normalBox = mkBox(row, NS, 44, 52, function(v)
-            if v > 0 and v <= 500 then NS = v end
-            saveConfig()
-        end)
+        normalBox = mkBox(row, NS, 44, 52, function(v) if v > 0 and v <= 500 then NS = v end end)
     end
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "Carry Speed")
-        carryBox = mkBox(row, CS, 44, 52, function(v)
-            if v > 0 and v <= 500 then CS = v end
-            saveConfig()
-        end)
+        carryBox = mkBox(row, CS, 44, 52, function(v) if v > 0 and v <= 500 then CS = v end end)
     end
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "Lagger Normal")
-        laggerBox = mkBox(row, LAGGER_SPEED, 44, 52, function(v)
-            if v > 0 and v <= 500 then LAGGER_SPEED = v end
-            saveConfig()
-        end)
+        laggerBox = mkBox(row, LAGGER_SPEED, 44, 52, function(v) if v > 0 and v <= 500 then LAGGER_SPEED = v end end)
     end
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "Lagger Carry")
-        laggerCarryBox = mkBox(row, LAGGER_CARRY_SPEED, 44, 52, function(v)
-            if v > 0 and v <= 500 then LAGGER_CARRY_SPEED = v end
-            saveConfig()
-        end)
+        laggerCarryBox = mkBox(row, LAGGER_CARRY_SPEED, 44, 52, function(v) if v > 0 and v <= 500 then LAGGER_CARRY_SPEED = v end end)
     end
 
-    -- Mod Seçimi
     do
         local sv = mkToggle(content, "Lagger Mode", function(on)
             if on then
-                if speedMode then
-                    speedMode = false
-                    if setCarrySpeedVisual then setCarrySpeedVisual(false) end
-                end
+                if speedMode then speedMode = false end
                 laggerToggled = true
                 laggerPhase = 1
             else
                 laggerToggled = false
                 laggerPhase = 0
             end
-            setLaggerModeVisual = sv
             refreshSpeedModeLabel()
-            saveConfig()
         end)
         setLaggerModeVisual = sv
     end
@@ -1516,69 +1315,39 @@ local function buildGui()
         modeValLbl.BackgroundTransparency = 1
         modeValLbl.Text = "Normal"
         modeValLbl.TextColor3 = COLORS.TEXT_DIM
-        modeValLbl.Font = Enum.Font.SourceSans
-        modeValLbl.TextSize = 12
+        modeValLbl.Font = Enum.Font.Gotham
+        modeValLbl.TextSize = 13
         modeValLbl.TextXAlignment = Enum.TextXAlignment.Right
         local clk = Instance.new("TextButton", row)
         clk.Size = UDim2.new(1, 0, 1, 0)
         clk.BackgroundTransparency = 1
         clk.Text = ""
-        clk.ZIndex = 2
-        clk.Activated:Connect(function()
-            if _anyKeyListening then return end
-            toggleCarryMode()
-            saveConfig()
-        end)
+        clk.Activated:Connect(toggleCarryMode)
     end
 
-    -- Oyuncu Özellikleri
-    setInfJumpVisual = mkToggle(content, "Infinite Jump", function(on)
-        infJumpEnabled = on
-    end)
-
-    setUnwalkVisual = mkToggle(content, "Unwalk", function(on)
-        unwalkEnabled = on
-        if on then startUnwalk() else stopUnwalk() end
-    end)
-
-    setAutoTPVisual = mkToggle(content, "Auto TP", function(on)
-        autoTPEnabled = on
-        if on then startAutoTP() else stopAutoTP() end
-        saveConfig()
-    end)
+    setInfJumpVisual = mkToggle(content, "Infinite Jump", function(on) infJumpEnabled = on end)
+    setUnwalkVisual = mkToggle(content, "Unwalk", function(on) unwalkEnabled = on; if on then startUnwalk() else stopUnwalk() end end)
+    setAutoTPVisual = mkToggle(content, "Auto TP", function(on) autoTPEnabled = on; if on then startAutoTP() else stopAutoTP() end end)
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "TP Height")
-        autoTPHeightBox = mkBox(row, autoTPHeight, 44, 52, function(v)
-            if v >= 0 and v <= 500 then autoTPHeight = v else autoTPHeightBox.Text = tostring(autoTPHeight) end
-            saveConfig()
-        end)
+        autoTPHeightBox = mkBox(row, autoTPHeight, 44, 52, function(v) if v >= 0 and v <= 500 then autoTPHeight = v end end)
     end
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "TP Down")
-        mkKB(row, KB.TPFloor, function(k, isGp)
-            if isGp then KB.TPFloor.gp = k; KB.TPFloor.kb = nil else KB.TPFloor.kb = k; KB.TPFloor.gp = nil end
-            saveConfig()
-        end)
         local clk = Instance.new("TextButton", row)
         clk.Size = UDim2.new(0.5, 0, 1, 0)
         clk.BackgroundTransparency = 1
-        clk.Text = ""
-        clk.ZIndex = 2
-        clk.Activated:Connect(function() runTPFloor() end)
+        clk.Text = "Click"
+        clk.Activated:Connect(runTPFloor)
     end
 
-    -- Savaş Özellikleri
     do
         local abRow = mkRow(content, 30)
         mkLabel(abRow, "Auto Bat")
-        mkKB(abRow, KB.AutoBat, function(k, isGp)
-            if isGp then KB.AutoBat.gp = k; KB.AutoBat.kb = nil else KB.AutoBat.kb = k; KB.AutoBat.gp = nil end
-            saveConfig()
-        end)
         local abPill, abDot = mkPill(abRow, 108)
         local abOn = false
         local function svAutoBat(s)
@@ -1590,23 +1359,16 @@ local function buildGui()
         abClk.Size = UDim2.new(1, 0, 1, 0)
         abClk.BackgroundTransparency = 1
         abClk.Text = ""
-        abClk.ZIndex = 5
         abClk.Activated:Connect(function()
-            if _anyKeyListening then return end
             abOn = not abOn
             svAutoBat(abOn)
             if abOn then queueAutoBatStart() else disableAutoBat() end
-            saveConfig()
         end)
     end
 
     do
         local ab2Row = mkRow(content, 30)
         mkLabel(ab2Row, "Aimbot 2")
-        mkKB(ab2Row, KB.Aimbot2, function(k, isGp)
-            if isGp then KB.Aimbot2.gp = k; KB.Aimbot2.kb = nil else KB.Aimbot2.kb = k; KB.Aimbot2.gp = nil end
-            saveConfig()
-        end)
         local ab2Pill, ab2Dot = mkPill(ab2Row, 108)
         local ab2On = false
         local function svAimbot2(s)
@@ -1618,37 +1380,20 @@ local function buildGui()
         ab2Clk.Size = UDim2.new(1, 0, 1, 0)
         ab2Clk.BackgroundTransparency = 1
         ab2Clk.Text = ""
-        ab2Clk.ZIndex = 5
         ab2Clk.Activated:Connect(function()
-            if _anyKeyListening then return end
             ab2On = not ab2On
             svAimbot2(ab2On)
             if ab2On then queueAimbot2Start() else disableAimbot2() end
-            saveConfig()
         end)
     end
 
-    setAutoSwingVisual = mkToggle(content, "Auto Swing", function(on)
-        autoSwingEnabled = on
-        saveConfig()
-    end)
-
-    setBatCounterVisual = mkToggle(content, "Bat Counter", function(on)
-        batCounterEnabled = on
-        if on then startBatCounter() else stopBatCounter() end
-        saveConfig()
-    end)
+    setAutoSwingVisual = mkToggle(content, "Auto Swing", function(on) autoSwingEnabled = on end)
+    setBatCounterVisual = mkToggle(content, "Bat Counter", function(on) batCounterEnabled = on; if on then startBatCounter() else stopBatCounter() end end)
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "Steal Radius")
-        radInput = mkBox(row, Steal.StealRadius, 44, 56, function(v)
-            if v >= 0.5 and v <= 300 then
-                Steal.StealRadius = v
-                if progressRadLbl then progressRadLbl.Text = string.format("Radius: %.2g", Steal.StealRadius) end
-            end
-            saveConfig()
-        end)
+        radInput = mkBox(row, Steal.StealRadius, 44, 56, function(v) if v >= 0.5 and v <= 300 then Steal.StealRadius = v end end)
     end
 
     do
@@ -1665,745 +1410,148 @@ local function buildGui()
         clk.Size = UDim2.new(1, 0, 1, 0)
         clk.BackgroundTransparency = 1
         clk.Text = ""
-        clk.ZIndex = 5
         clk.Activated:Connect(function()
             on = not on
             sv(on)
             Steal.AutoStealEnabled = on
-            if on then
-                if not pcall(startAutoSteal) then
-                    Steal.AutoStealEnabled = false
-                    sv(false)
-                end
-            else
-                stopAutoSteal()
-            end
-            saveConfig()
+            if on then startAutoSteal() else stopAutoSteal() end
         end)
-        pill.ZIndex = 3
-        dot.ZIndex = 4
     end
 
     do
         local row = mkRow(content, 30)
         mkLabel(row, "Drop Brainrot")
-        mkKB(row, KB.DropBrainrot, function(k, isGp)
-            if isGp then KB.DropBrainrot.gp = k; KB.DropBrainrot.kb = nil else KB.DropBrainrot.kb = k; KB.DropBrainrot.gp = nil end
-            saveConfig()
-        end)
         local clk = Instance.new("TextButton", row)
         clk.Size = UDim2.new(0.5, 0, 1, 0)
         clk.BackgroundTransparency = 1
-        clk.Text = ""
-        clk.ZIndex = 2
-        clk.Activated:Connect(function() runDrop() end)
+        clk.Text = "Click"
+        clk.Activated:Connect(runDrop)
     end
 
-    -- Koruma Özellikleri
-    setAntiRagVisual = mkToggle(content, "Anti Ragdoll", function(on)
-        antiRagdollEnabled = on
-        if on then startAntiRagdoll() else stopAntiRagdoll() end
-    end)
+    setAntiRagVisual = mkToggle(content, "Anti Ragdoll", function(on) antiRagdollEnabled = on; if on then startAntiRagdoll() else stopAntiRagdoll() end end)
+    setMedusaVisual = mkToggle(content, "Medusa Counter", function(on) medusaCounterEnabled = on; if on then setupMedusa(LP.Character) else stopMedusaCounter() end end)
+    setAntiLagVisual = mkToggle(content, "Anti Lag", function(on) if on then enableAntiLag() else disableAntiLag() end end)
+    setStretchRezVisual = mkToggle(content, "Stretch Rez", function(on) if on then enableStretchRez() else disableStretchRez() end end)
 
-    setMedusaVisual = mkToggle(content, "Medusa Counter", function(on)
-        medusaCounterEnabled = on
-        if on then setupMedusa(LP.Character) else stopMedusaCounter() end
-        saveConfig()
-    end)
-
-    -- Görsel Özellikleri
-    setAntiLagVisual = mkToggle(content, "Anti Lag", function(on)
-        if on then enableAntiLag() else disableAntiLag() end
-        saveConfig()
-    end)
-
-    setStretchRezVisual = mkToggle(content, "Stretch Rez", function(on)
-        if on then enableStretchRez() else disableStretchRez() end
-        saveConfig()
-    end)
-
-    -- Diğer Özellikler
     do
-        local sv = mkToggleKB(content, "Auto Left", KB.AutoLeft,
-            function(on)
-                autoLeftEnabled = on
-                if on then queueAutoLeftStart() else stopAutoLeft() end
-            end,
-            function(k, isGp)
-                if isGp then KB.AutoLeft.gp = k; KB.AutoLeft.kb = nil else KB.AutoLeft.kb = k; KB.AutoLeft.gp = nil end
-                saveConfig()
-            end)
+        local sv = mkToggleKB(content, "Auto Left", KB.AutoLeft, function(on) autoLeftEnabled = on; if on then queueAutoLeftStart() else stopAutoLeft() end end)
         autoLeftSetVisual = sv
     end
 
     do
-        local sv = mkToggleKB(content, "Auto Right", KB.AutoRight,
-            function(on)
-                autoRightEnabled = on
-                if on then queueAutoRightStart() else stopAutoRight() end
-            end,
-            function(k, isGp)
-                if isGp then KB.AutoRight.gp = k; KB.AutoRight.kb = nil else KB.AutoRight.kb = k; KB.AutoRight.gp = nil end
-                saveConfig()
-            end)
+        local sv = mkToggleKB(content, "Auto Right", KB.AutoRight, function(on) autoRightEnabled = on; if on then queueAutoRightStart() else stopAutoRight() end end)
         autoRightSetVisual = sv
     end
 
-    do
-        local row = mkRow(content, 30)
-        mkLabel(row, "Insta Reset")
-        mkKB(row, KB.InstaReset, function(k, isGp)
-            if isGp then KB.InstaReset.gp = k; KB.InstaReset.kb = nil else KB.InstaReset.kb = k; KB.InstaReset.gp = nil end
-            saveConfig()
-        end)
-    end
+    setAutoMedResetVisual = mkToggle(content, "Auto Med Reset", function(on) autoMedResetEnabled = on; if on then startAutoMedReset() else stopAutoMedReset() end end)
 
-    do
-        local row = mkRow(content, 30)
-        mkLabel(row, "Hide UI")
-        mkKB(row, KB.GuiHide, function(k, isGp)
-            if isGp then KB.GuiHide.gp = k; KB.GuiHide.kb = nil else KB.GuiHide.kb = k; KB.GuiHide.gp = nil end
-            saveConfig()
-        end)
-    end
+    local bottomRow = mkRow(content, 45)
+    bottomRow.BackgroundTransparency = 1
 
-    do
-        local row = mkRow(content, 30)
-        mkLabel(row, "Speed Key")
-        mkKB(row, KB.SpeedToggle, function(k, isGp)
-            if isGp then KB.SpeedToggle.gp = k; KB.SpeedToggle.kb = nil else KB.SpeedToggle.kb = k; KB.SpeedToggle.gp = nil end
-            saveConfig()
-        end)
-    end
-
-    do
-        local row = mkRow(content, 30)
-        mkLabel(row, "Lagger Key")
-        mkKB(row, KB.LaggerToggle, function(k, isGp)
-            if isGp then KB.LaggerToggle.gp = k; KB.LaggerToggle.kb = nil else KB.LaggerToggle.kb = k; KB.LaggerToggle.gp = nil end
-            saveConfig()
-        end)
-    end
-
-    setAutoMedResetVisual = mkToggle(content, "Auto Med Reset", function(on)
-        autoMedResetEnabled = on
-        if on then startAutoMedReset() else stopAutoMedReset() end
+    local saveBtn = Instance.new("TextButton", bottomRow)
+    saveBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    saveBtn.Position = UDim2.new(0, 0, 0, 0)
+    saveBtn.BackgroundColor3 = COLORS.BUTTON_ACTIVE
+    saveBtn.Text = "Save Settings"
+    saveBtn.TextColor3 = Color3.new(1,1,1)
+    saveBtn.Font = Enum.Font.GothamBold
+    saveBtn.TextSize = 14
+    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 8)
+    addAnimatedStroke(saveBtn, 1.5)
+    saveBtn.Activated:Connect(function()
         saveConfig()
     end)
 
-    -- Ayarlar
-    do
-        local secRow = Instance.new("Frame", content)
-        secRow.Size = UDim2.new(1, 0, 0, 20)
-        secRow.BackgroundTransparency = 1
-        secRow.LayoutOrder = LO()
-        local secLbl = Instance.new("TextLabel", secRow)
-        secLbl.Size = UDim2.new(1, 0, 1, 0)
-        secLbl.BackgroundTransparency = 1
-        secLbl.Text = "SETTINGS"
-        secLbl.TextColor3 = COLORS.TEXT_DIM
-        secLbl.Font = Enum.Font.SourceSansBold
-        secLbl.TextSize = 11
-        secLbl.TextXAlignment = Enum.TextXAlignment.Left
-    end
-
-    do
-        local row = mkRow(content, 30)
-        mkLabel(row, "GUI Scale")
-        local box = mkBox(row, guiScale, 44, 52, function(v)
-            applyGuiScale(v)
-            saveConfig()
-        end)
-        box.Text = tostring(guiScale)
-        local hint = Instance.new("TextLabel", row)
-        hint.Size = UDim2.new(0, 50, 1, 0)
-        hint.Position = UDim2.new(1, -110, 0, 0)
-        hint.BackgroundTransparency = 1
-        hint.Text = "(0.3-3)"
-        hint.TextColor3 = COLORS.TEXT_DIM
-        hint.Font = Enum.Font.SourceSans
-        hint.TextSize = 10
-        hint.TextXAlignment = Enum.TextXAlignment.Right
-    end
-
-    do
-        local row = mkRow(content, 30)
-        mkLabel(row, "Mobile Scale")
-        local box = mkBox(row, mbScale, 44, 52, function(v)
-            applyMbScale(v)
-            saveConfig()
-        end)
-        box.Text = tostring(mbScale)
-        local hint = Instance.new("TextLabel", row)
-        hint.Size = UDim2.new(0, 50, 1, 0)
-        hint.Position = UDim2.new(1, -110, 0, 0)
-        hint.BackgroundTransparency = 1
-        hint.Text = "(0.3-3)"
-        hint.TextColor3 = COLORS.TEXT_DIM
-        hint.Font = Enum.Font.SourceSans
-        hint.TextSize = 10
-        hint.TextXAlignment = Enum.TextXAlignment.Right
-    end
-
-    local resetRow = mkRow(content, 30)
-    mkLabel(resetRow, "Reset Sizes")
-    local resetBtn = Instance.new("TextButton", resetRow)
-    resetBtn.Size = UDim2.new(0, 60, 0, 20)
-    resetBtn.Position = UDim2.new(1, -66, 0.5, -10)
-    resetBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    resetBtn.BorderSizePixel = 0
-    resetBtn.Text = "RESET"
-    resetBtn.TextColor3 = COLORS.TEXT
-    resetBtn.Font = Enum.Font.SourceSansBold
-    resetBtn.TextSize = 11
-    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
-    addAnimatedStroke(resetBtn, 1)
-    resetBtn.MouseButton1Click:Connect(function()
-        applyGuiScale(1.0)
-        applyMbScale(1.0)
-        if normalBox then normalBox.Text = tostring(NS) end
-        if carryBox then carryBox.Text = tostring(CS) end
-        if laggerBox then laggerBox.Text = tostring(LAGGER_SPEED) end
-        if laggerCarryBox then laggerCarryBox.Text = tostring(LAGGER_CARRY_SPEED) end
-        if autoTPHeightBox then autoTPHeightBox.Text = tostring(autoTPHeight) end
-        if radInput then radInput.Text = tostring(Steal.StealRadius) end
-        saveConfig()
+    local resetBtn = Instance.new("TextButton", bottomRow)
+    resetBtn.Size = UDim2.new(0.48, 0, 1, 0)
+    resetBtn.Position = UDim2.new(0.52, 0, 0, 0)
+    resetBtn.BackgroundColor3 = COLORS.BUTTON
+    resetBtn.Text = "Reset Settings"
+    resetBtn.TextColor3 = Color3.new(1,1,1)
+    resetBtn.Font = Enum.Font.GothamBold
+    resetBtn.TextSize = 14
+    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 8)
+    addAnimatedStroke(resetBtn, 1.5)
+    resetBtn.Activated:Connect(function()
+        guiScale = 0.75
+        mbScale = 0.85
+        if normalBox then normalBox.Text = "60" end
+        if carryBox then carryBox.Text = "30" end
+        if laggerBox then laggerBox.Text = "15" end
+        if laggerCarryBox then laggerCarryBox.Text = "24.5" end
     end)
 
-    local infoFrame = Instance.new("Frame", content)
-    infoFrame.Size = UDim2.new(1, 0, 0, 30)
-    infoFrame.BackgroundTransparency = 1
-    infoFrame.LayoutOrder = LO()
-    local infoLbl = Instance.new("TextLabel", infoFrame)
-    infoLbl.Size = UDim2.new(1, 0, 1, 0)
-    infoLbl.BackgroundTransparency = 1
-    infoLbl.Text = "1.0 = default | 0.5 = half | 2.0 = double"
-    infoLbl.TextColor3 = COLORS.TEXT_DIM
-    infoLbl.Font = Enum.Font.SourceSans
-    infoLbl.TextSize = 10
-    infoLbl.TextXAlignment = Enum.TextXAlignment.Left
-    infoLbl.TextWrapped = true
-
-    local credRow = Instance.new("Frame", content)
-    credRow.Size = UDim2.new(1, 0, 0, 25)
-    credRow.BackgroundTransparency = 1
-    credRow.LayoutOrder = LO()
-    local credLbl = Instance.new("TextLabel", credRow)
-    credLbl.Size = UDim2.new(1, 0, 1, 0)
-    credLbl.BackgroundTransparency = 1
-    credLbl.Text = "made by hz and reaper"
-    credLbl.TextColor3 = COLORS.ACCENT
-    credLbl.Font = Enum.Font.SourceSans
-    credLbl.TextSize = 10
-    credLbl.TextXAlignment = Enum.TextXAlignment.Center
-
-    -- ============ MOBİL BUTONLAR (BİREYSEL SÜRÜKLENEBİLİR) ============
-    local MB_BTN_SIZE = math.floor(55 * mbScale)
-    local MB_PAD = math.floor(8 * mbScale)
-
-    -- Eski mobil GUI'yi sil
-    local oldMb = game:GetService("CoreGui"):FindFirstChild("MoonHubMobile")
-    if oldMb then oldMb:Destroy() end
-    local mbPg = LP:FindFirstChild("PlayerGui")
-    if mbPg then
-        local o = mbPg:FindFirstChild("MoonHubMobile")
-        if o then o:Destroy() end
-    end
-
-    local mbGui = Instance.new("ScreenGui")
-    mbGui.Name = "MoonHubMobile"
-    mbGui.ResetOnSpawn = false
-    mbGui.DisplayOrder = 10
-    mbGui.IgnoreGuiInset = true
-    if not pcall(function() mbGui.Parent = game:GetService("CoreGui") end) then
-        mbGui.Parent = LP:WaitForChild("PlayerGui")
-    end
-
-    -- Bireysel sürüklenebilir buton oluşturucu
-    local function createMobileButton(label, defaultPos, onClick, isToggle, getState)
-        local btn = Instance.new("TextButton", mbGui)
-        btn.Size = UDim2.new(0, MB_BTN_SIZE, 0, MB_BTN_SIZE)
-        btn.Position = defaultPos
-        btn.BackgroundColor3 = COLORS.BUTTON
-        btn.BackgroundTransparency = 0.3
-        btn.BorderSizePixel = 0
-        btn.Text = label
-        btn.TextColor3 = COLORS.TEXT
-        btn.Font = Enum.Font.SourceSansBold
-        btn.TextSize = 10
-        btn.TextWrapped = true
-        btn.ZIndex = 52
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0) -- Tam yuvarlak
-
-        -- Animasyonlu stroke
-        local outline = Instance.new("UIStroke", btn)
-        outline.Color = COLORS.STROKE_START
-        outline.Thickness = 2
-        outline.Transparency = 0
-        outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-        local gradient = Instance.new("UIGradient", outline)
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, COLORS.STROKE_START),
-            ColorSequenceKeypoint.new(0.5, COLORS.STROKE_MID),
-            ColorSequenceKeypoint.new(1, COLORS.STROKE_START)
-        })
-        gradient.Rotation = 0
-
-        task.spawn(function()
-            while btn and btn.Parent do
-                gradient.Rotation = (gradient.Rotation + 1.2) % 360
-                task.wait()
-            end
-        end)
-
-        -- Sürükleme işlevselliği
-        local dn, ds, sp = false
-        btn.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                dn = true; ds = i.Position; sp = btn.Position
-                i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dn = false end end)
-            end
-        end)
-
-        btn.InputChanged:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-                di = i
-            end
-        end)
-
-        UIS.InputChanged:Connect(function(i)
-            if i == di and dn then
-                local delta = i.Position - ds
-                btn.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Scale, sp.Y.Offset + delta.Y)
-            end
-        end)
-
-        -- Buton efektleri
-        btn.MouseButton1Down:Connect(function()
-            TS:Create(btn, TweenInfo.new(0.05), {
-                BackgroundColor3 = COLORS.BUTTON_HOVER,
-                BackgroundTransparency = 0.1
-            }):Play()
-        end)
-
-        btn.MouseButton1Up:Connect(function()
-            TS:Create(btn, TweenInfo.new(0.08), {
-                BackgroundColor3 = isToggle and (getState() and COLORS.BUTTON_ACTIVE or COLORS.BUTTON) or COLORS.BUTTON,
-                BackgroundTransparency = 0.3
-            }):Play()
-        end)
-
-        btn.MouseEnter:Connect(function()
-            TS:Create(outline, TweenInfo.new(0.1), {
-                Color = COLORS.STROKE_MID,
-                Thickness = 2.5
-            }):Play()
-        end)
-
-        btn.MouseLeave:Connect(function()
-            TS:Create(outline, TweenInfo.new(0.1), {
-                Color = COLORS.STROKE_START,
-                Thickness = 2
-            }):Play()
-        end)
-
-        if onClick then
-            btn.MouseButton1Click:Connect(onClick)
-        end
-
-        -- Toggle butonları için durum güncelleme
-        if isToggle and getState then
-            task.spawn(function()
-                while btn and btn.Parent do
-                    local state = getState()
-                    TS:Create(btn, TweenInfo.new(0.1), {
-                        BackgroundColor3 = state and COLORS.BUTTON_ACTIVE or COLORS.BUTTON
-                    }):Play()
-                    task.wait(0.1)
-                end
-            end)
-        end
-
-        return btn
-    end
-
-    -- Buton konumları (2 sütun, 6 satır)
-    local function getButtonPos(row, col)
-        local x = MB_PAD + (col - 1) * (MB_BTN_SIZE + MB_PAD)
-        local y = MB_PAD + (row - 1) * (MB_BTN_SIZE + MB_PAD)
-        return UDim2.new(0, x, 0, y)
-    end
-
-    -- Butonları oluştur
-    local aimbot2Btn = createMobileButton("AIMBOT\n2", getButtonPos(1, 1), function()
-        if _anyKeyListening then return end
-        if autoLeftEnabled then autoLeftEnabled = false; if autoLeftSetVisual then autoLeftSetVisual(false) end; stopAutoLeft() end
-        if autoRightEnabled then autoRightEnabled = false; if autoRightSetVisual then autoRightSetVisual(false) end; stopAutoRight() end
-        if autoBatEnabled then disableAutoBat(); if autoBatSetVisual then autoBatSetVisual(false) end end
-        aimbot2Enabled = not aimbot2Enabled
-        if aimbot2SetVisual then aimbot2SetVisual(aimbot2Enabled) end
-        if aimbot2Enabled then queueAimbot2Start() else disableAimbot2() end
-        saveConfig()
-    end, true, function() return aimbot2Enabled end)
-
-    local dropBtn = createMobileButton("DROP\nBR", getButtonPos(1, 2), function()
-        if _anyKeyListening then return end
-        runDrop()
-    end)
-
-    local autoLeftBtn = createMobileButton("AUTO\nLEFT", getButtonPos(2, 1), function()
-        if _anyKeyListening then return end
-        if autoRightEnabled then autoRightEnabled = false; if autoRightSetVisual then autoRightSetVisual(false) end; stopAutoRight() end
-        if autoBatEnabled then disableAutoBat(); if autoBatSetVisual then autoBatSetVisual(false) end end
-        if aimbot2Enabled then disableAimbot2(); if aimbot2SetVisual then aimbot2SetVisual(false) end end
-        autoLeftEnabled = not autoLeftEnabled
-        if autoLeftSetVisual then autoLeftSetVisual(autoLeftEnabled) end
-        if autoLeftEnabled then queueAutoLeftStart() else stopAutoLeft() end
-        saveConfig()
-    end, true, function() return autoLeftEnabled end)
-
-    local autoBatBtn = createMobileButton("AUTO\nBAT", getButtonPos(2, 2), function()
-        if _anyKeyListening then return end
-        if autoLeftEnabled then autoLeftEnabled = false; if autoLeftSetVisual then autoLeftSetVisual(false) end; stopAutoLeft() end
-        if autoRightEnabled then autoRightEnabled = false; if autoRightSetVisual then autoRightSetVisual(false) end; stopAutoRight() end
-        if aimbot2Enabled then disableAimbot2(); if aimbot2SetVisual then aimbot2SetVisual(false) end end
-        autoBatEnabled = not autoBatEnabled
-        if autoBatSetVisual then autoBatSetVisual(autoBatEnabled) end
-        if autoBatEnabled then queueAutoBatStart() else disableAutoBat() end
-        saveConfig()
-    end, true, function() return autoBatEnabled end)
-
-    local autoRightBtn = createMobileButton("AUTO\nRIGHT", getButtonPos(3, 1), function()
-        if _anyKeyListening then return end
-        if autoLeftEnabled then autoLeftEnabled = false; if autoLeftSetVisual then autoLeftSetVisual(false) end; stopAutoLeft() end
-        if autoBatEnabled then disableAutoBat(); if autoBatSetVisual then autoBatSetVisual(false) end end
-        if aimbot2Enabled then disableAimbot2(); if aimbot2SetVisual then aimbot2SetVisual(false) end end
-        autoRightEnabled = not autoRightEnabled
-        if autoRightSetVisual then autoRightSetVisual(autoRightEnabled) end
-        if autoRightEnabled then queueAutoRightStart() else stopAutoRight() end
-        saveConfig()
-    end, true, function() return autoRightEnabled end)
-
-    local tpDownBtn = createMobileButton("TP\nDOWN", getButtonPos(3, 2), function()
-        if _anyKeyListening then return end
-        runTPFloor()
-    end)
-
-    local laggerCarryBtn = createMobileButton("LAGGER\nCARRY", getButtonPos(4, 1), function()
-        if _anyKeyListening then return end
-        if laggerToggled and laggerPhase == 2 then
-            laggerToggled = false; laggerPhase = 0
-            if setLaggerCarryVisual then setLaggerCarryVisual(false) end
-            if setLaggerModeVisual then setLaggerModeVisual(false) end
-        else
-            if speedMode then speedMode = false; if setCarrySpeedVisual then setCarrySpeedVisual(false) end end
-            laggerToggled = true; laggerPhase = 2
-            if setLaggerCarryVisual then setLaggerCarryVisual(true) end
-            if setLaggerModeVisual then setLaggerModeVisual(true) end
-        end
-        refreshSpeedModeLabel()
-        saveConfig()
-    end, true, function() return laggerToggled and laggerPhase == 2 end)
-
-    local carrySpeedBtn = createMobileButton("CARRY\nSPD", getButtonPos(4, 2), function()
-        if _anyKeyListening then return end
-        if not speedMode then
-            if laggerToggled then
-                laggerToggled = false; laggerPhase = 0
-                if setLaggerModeVisual then setLaggerModeVisual(false) end
-                if setLaggerCarryVisual then setLaggerCarryVisual(false) end
-            end
-            speedMode = true
-        else
-            speedMode = false
-        end
-        if setCarrySpeedVisual then setCarrySpeedVisual(speedMode) end
-        refreshSpeedModeLabel()
-        saveConfig()
-    end, true, function() return speedMode end)
-
-    local laggerModeBtn = createMobileButton("LAGGER\nMODE", getButtonPos(5, 1), function()
-        if _anyKeyListening then return end
-        toggleLaggerMode()
-        saveConfig()
-    end, true, function() return laggerToggled and laggerPhase == 1 end)
-
-    local instaResetBtn = createMobileButton("INSTA\nRESET", getButtonPos(5, 2), function()
-        if _anyKeyListening then return end
-        task.spawn(cursedInstaReset)
-    end)
-
-    -- Baloncuk tıklama
     bubble.MouseButton1Click:Connect(function()
         main.Visible = not main.Visible
     end)
 end
 
--- ============ KONFİG KAYDETME/YÜKLEME ============
-local _savedCfg = nil
-
 local function saveConfig()
-    local function ks(e)
-        return {kb = e.kb and e.kb.Name or nil, gp = e.gp and e.gp.Name or nil}
-    end
     local cfg = {
         normalSpeed = NS, carrySpeed = CS,
-        dropBrainrotKey = ks(KB.DropBrainrot), autoLeftKey = ks(KB.AutoLeft), autoRightKey = ks(KB.AutoRight),
-        autoBatKey = ks(KB.AutoBat), aimbot2Key = ks(KB.Aimbot2), laggerToggleKey = ks(KB.LaggerToggle),
-        tpFloorKey = ks(KB.TPFloor), guiHideKey = ks(KB.GuiHide), speedToggleKey = ks(KB.SpeedToggle),
-        instaResetKey = ks(KB.InstaReset),
-        grabRadius = Steal.StealRadius, stealDuration = Steal.StealDuration,
-        antiRagdoll = antiRagdollEnabled, autoStealEnabled = Steal.AutoStealEnabled,
-        infiniteJump = infJumpEnabled, medusaCounter = medusaCounterEnabled,
-        batCounter = batCounterEnabled, carryMode = speedMode, laggerMode = laggerToggled,
-        laggerCarryMode = laggerPhase == 2, laggerSpeed = LAGGER_SPEED, laggerCarrySpeed = LAGGER_CARRY_SPEED,
-        autoBat = autoBatEnabled, autoSwing = autoSwingEnabled, aimbot2 = aimbot2Enabled,
-        unwalkEnabled = unwalkEnabled, antiLag = antiLagEnabled, stretchRez = stretchRezEnabled,
-        autoTPEnabled = autoTPEnabled, autoTPHeight = autoTPHeight,
-        guiScale = guiScale, mbScale = mbScale, autoMedReset = autoMedResetEnabled,
+        laggerSpeed = LAGGER_SPEED, laggerCarrySpeed = LAGGER_CARRY_SPEED,
+        grabRadius = Steal.StealRadius,
+        guiScale = guiScale, mbScale = mbScale,
+        autoTPHeight = autoTPHeight,
+        antiRagdoll = antiRagdollEnabled,
+        infiniteJump = infJumpEnabled,
+        medusaCounter = medusaCounterEnabled,
+        batCounter = batCounterEnabled,
+        carryMode = speedMode,
+        laggerMode = laggerToggled,
+        laggerCarryMode = laggerPhase == 2,
+        autoBat = autoBatEnabled,
+        autoSwing = autoSwingEnabled,
+        aimbot2 = aimbot2Enabled,
+        unwalkEnabled = unwalkEnabled,
+        antiLag = antiLagEnabled,
+        stretchRez = stretchRezEnabled,
+        autoTPEnabled = autoTPEnabled,
+        autoMedReset = autoMedResetEnabled,
+        autoStealEnabled = Steal.AutoStealEnabled
     }
     if writefile then
         pcall(function()
-            writefile("moonhub_config.json", HS:JSONEncode(cfg))
+            writefile("moonhubduel.json", HS:JSONEncode(cfg))
         end)
     end
 end
 
-task.spawn(function()
-    while task.wait(5) do
-        saveConfig()
-    end
-end)
-
-local function loadConfigKeys()
-    if not (isfile and isfile("moonhub_config.json")) then return end
+local function loadConfig()
+    if not isfile or not isfile("moonhubduel.json") then return end
     local ok, cfg = pcall(function()
-        return HS:JSONDecode(readfile("moonhub_config.json"))
+        return HS:JSONDecode(readfile("moonhubduel.json"))
     end)
     if not ok or not cfg then return end
-    _savedCfg = cfg
-    local function lk(e, d)
-        if type(d) ~= "table" then return end
-        if d.kb and Enum.KeyCode[d.kb] then e.kb = Enum.KeyCode[d.kb] end
-        if d.gp and Enum.KeyCode[d.gp] then e.gp = Enum.KeyCode[d.gp] end
-    end
-    lk(KB.DropBrainrot, cfg.dropBrainrotKey); lk(KB.AutoLeft, cfg.autoLeftKey); lk(KB.AutoRight, cfg.autoRightKey)
-    lk(KB.AutoBat, cfg.autoBatKey); lk(KB.Aimbot2, cfg.aimbot2Key); lk(KB.LaggerToggle, cfg.laggerToggleKey)
-    lk(KB.TPFloor, cfg.tpFloorKey); lk(KB.GuiHide, cfg.guiHideKey); lk(KB.SpeedToggle, cfg.speedToggleKey)
-    lk(KB.InstaReset, cfg.instaResetKey)
     if cfg.normalSpeed then NS = cfg.normalSpeed end
     if cfg.carrySpeed then CS = cfg.carrySpeed end
-    if cfg.grabRadius and type(cfg.grabRadius) == "number" then Steal.StealRadius = cfg.grabRadius else Steal.StealRadius = 60 end
-    if cfg.stealDuration and type(cfg.stealDuration) == "number" then Steal.StealDuration = cfg.stealDuration else Steal.StealDuration = 1.4 end
-    if cfg.laggerSpeed and type(cfg.laggerSpeed) == "number" then LAGGER_SPEED = cfg.laggerSpeed end
-    if cfg.laggerCarrySpeed and type(cfg.laggerCarrySpeed) == "number" then LAGGER_CARRY_SPEED = cfg.laggerCarrySpeed end
-    if cfg.autoTPHeight and type(cfg.autoTPHeight) == "number" then autoTPHeight = cfg.autoTPHeight end
-    if cfg.autoSwing ~= nil then autoSwingEnabled = cfg.autoSwing == true end
-    if cfg.guiScale and type(cfg.guiScale) == "number" then guiScale = math.clamp(cfg.guiScale, 0.3, 3.0) end
-    if cfg.mbScale and type(cfg.mbScale) == "number" then mbScale = math.clamp(cfg.mbScale, 0.3, 3.0) end
+    if cfg.laggerSpeed then LAGGER_SPEED = cfg.laggerSpeed end
+    if cfg.laggerCarrySpeed then LAGGER_CARRY_SPEED = cfg.laggerCarrySpeed end
+    if cfg.grabRadius then Steal.StealRadius = cfg.grabRadius end
+    if cfg.guiScale then guiScale = cfg.guiScale end
+    if cfg.mbScale then mbScale = cfg.mbScale end
+    if cfg.autoTPHeight then autoTPHeight = cfg.autoTPHeight end
+    if cfg.antiRagdoll ~= nil then antiRagdollEnabled = cfg.antiRagdoll end
+    if cfg.infiniteJump ~= nil then infJumpEnabled = cfg.infiniteJump end
+    if cfg.medusaCounter ~= nil then medusaCounterEnabled = cfg.medusaCounter end
+    if cfg.batCounter ~= nil then batCounterEnabled = cfg.batCounter end
+    if cfg.carryMode ~= nil then speedMode = cfg.carryMode end
+    if cfg.laggerMode ~= nil then laggerToggled = cfg.laggerMode end
+    if cfg.laggerCarryMode ~= nil then laggerPhase = cfg.laggerCarryMode and 2 or 1 end
+    if cfg.autoBat ~= nil then autoBatEnabled = cfg.autoBat end
+    if cfg.autoSwing ~= nil then autoSwingEnabled = cfg.autoSwing end
+    if cfg.aimbot2 ~= nil then aimbot2Enabled = cfg.aimbot2 end
+    if cfg.unwalkEnabled ~= nil then unwalkEnabled = cfg.unwalkEnabled end
+    if cfg.antiLag ~= nil then antiLagEnabled = cfg.antiLag end
+    if cfg.stretchRez ~= nil then stretchRezEnabled = cfg.stretchRez end
+    if cfg.autoTPEnabled ~= nil then autoTPEnabled = cfg.autoTPEnabled end
     if cfg.autoMedReset ~= nil then autoMedResetEnabled = cfg.autoMedReset end
+    if cfg.autoStealEnabled ~= nil then Steal.AutoStealEnabled = cfg.autoStealEnabled end
 end
-
-local function loadConfigState()
-    local cfg = _savedCfg
-    if not cfg then return end
-
-    -- Değerleri yükle
-    if normalBox then normalBox.Text = tostring(NS) end
-    if carryBox then carryBox.Text = tostring(CS) end
-    if laggerBox then laggerBox.Text = tostring(LAGGER_SPEED) end
-    if laggerCarryBox then laggerCarryBox.Text = tostring(LAGGER_CARRY_SPEED) end
-    if radInput then radInput.Text = tostring(Steal.StealRadius) end
-    if progressRadLbl then progressRadLbl.Text = string.format("Radius: %.2g", Steal.StealRadius) end
-    if autoTPHeightBox then autoTPHeightBox.Text = tostring(autoTPHeight) end
-    if setAutoMedResetVisual then setAutoMedResetVisual(autoMedResetEnabled) end
-
-    -- Durumları yükle
-    task.spawn(function()
-        task.wait(0.15)
-
-        -- Anti Ragdoll
-        if cfg.antiRagdoll then
-            antiRagdollEnabled = true
-            if setAntiRagVisual then setAntiRagVisual(true) end
-            startAntiRagdoll()
-        end
-
-        -- Auto Steal
-        if cfg.autoStealEnabled then
-            Steal.AutoStealEnabled = true
-            if setInstaGrab then setInstaGrab(true) end
-            pcall(startAutoSteal)
-        end
-
-        -- Infinite Jump
-        if cfg.infiniteJump then
-            infJumpEnabled = true
-            if setInfJumpVisual then setInfJumpVisual(true) end
-        end
-
-        -- Medusa Counter
-        if cfg.medusaCounter then
-            medusaCounterEnabled = true
-            if setMedusaVisual then setMedusaVisual(true) end
-            setupMedusa(LP.Character)
-        end
-
-        -- Bat Counter
-        if cfg.batCounter then
-            batCounterEnabled = true
-            if setBatCounterVisual then setBatCounterVisual(true) end
-            startBatCounter()
-        end
-
-        -- Auto Med Reset
-        if cfg.autoMedReset then
-            autoMedResetEnabled = true
-            if setAutoMedResetVisual then setAutoMedResetVisual(true) end
-            startAutoMedReset()
-        end
-
-        -- Mod ayarları
-        if cfg.laggerMode then
-            speedMode = false
-            laggerToggled = true
-            laggerPhase = cfg.laggerCarryMode and 2 or 1
-            if setLaggerModeVisual then setLaggerModeVisual(laggerPhase == 1) end
-            if setLaggerCarryVisual then setLaggerCarryVisual(laggerPhase == 2) end
-            refreshSpeedModeLabel()
-        elseif cfg.carryMode then
-            laggerToggled = false
-            laggerPhase = 0
-            speedMode = true
-            if setCarrySpeedVisual then setCarrySpeedVisual(true) end
-            refreshSpeedModeLabel()
-        end
-
-        -- Auto TP
-        if cfg.autoTPEnabled then
-            autoTPEnabled = true
-            if setAutoTPVisual then setAutoTPVisual(true) end
-            startAutoTP()
-        end
-
-        -- Auto Swing
-        if setAutoSwingVisual then setAutoSwingVisual(autoSwingEnabled) end
-
-        -- Auto Bat
-        if cfg.autoBat then
-            autoBatEnabled = true
-            if autoBatSetVisual then autoBatSetVisual(true) end
-            queueAutoBatStart()
-        end
-
-        -- Aimbot 2
-        if cfg.aimbot2 then
-            aimbot2Enabled = true
-            if aimbot2SetVisual then aimbot2SetVisual(true) end
-            queueAimbot2Start()
-        end
-
-        -- Unwalk
-        if cfg.unwalkEnabled then
-            unwalkEnabled = true
-            if setUnwalkVisual then setUnwalkVisual(true) end
-            task.spawn(function() task.wait(0.5); startUnwalk() end)
-        end
-
-        -- Anti Lag
-        if cfg.antiLag then
-            enableAntiLag()
-            if setAntiLagVisual then setAntiLagVisual(true) end
-        end
-
-        -- Stretch Rez
-        if cfg.stretchRez then
-            enableStretchRez()
-            if setStretchRezVisual then setStretchRezVisual(true) end
-        end
-    end)
-end
-
--- ============ CURSED RESET HOOK ============
-pcall(function()
-    if hookfunction and newcclosure then
-        local oldFire
-        oldFire = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
-            if not cursedResetRemote and typeof(self) == "Instance" and self:IsA("RemoteEvent") and self.Name:sub(1,3) == "RE/" then
-                cursedResetRemote = self
-            end
-            return oldFire(self, ...)
-        end))
-    end
-end)
 
 task.spawn(function()
-    task.wait(2)
-    if cursedResetRemote then return end
-    for _, desc in ipairs(game:GetDescendants()) do
-        if desc:IsA("RemoteEvent") and desc.Name:sub(1,3) == "RE/" then
-            cursedResetRemote = desc
-            break
-        end
-    end
+    task.wait(3)
+    loadConfig()
+    buildGui()
+    print("Moon Hub Loaded - made by hz and reaper")
 end)
-
--- ============ BAŞLAT ============
-loadConfigKeys()
-buildGui()
-loadConfigState()
-
--- ============ GLOBAL KEYBINDS ============
-UIS.InputBegan:Connect(function(input, gpe)
-    if _anyKeyListening then return end
-    if input.UserInputType == Enum.UserInputType.Keyboard then
-        if gpe or UIS:GetFocusedTextBox() then return end
-    elseif not (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-        if not isGamepadInput(input) then return end
-    end
-    if not isBindableInput(input) then return end
-    local kc = input.KeyCode
-
-    if kbMatch(KB.LaggerToggle, kc) then
-        toggleLaggerMode()
-        saveConfig()
-    elseif kbMatch(KB.SpeedToggle, kc) then
-        toggleCarryMode()
-        saveConfig()
-    elseif kbMatch(KB.DropBrainrot, kc) then
-        runDrop()
-    elseif kbMatch(KB.TPFloor, kc) then
-        runTPFloor()
-    elseif kbMatch(KB.InstaReset, kc) then
-        task.spawn(cursedInstaReset)
-    elseif kbMatch(KB.AutoLeft, kc) then
-        autoLeftEnabled = not autoLeftEnabled
-        if autoLeftEnabled then queueAutoLeftStart() else stopAutoLeft() end
-        if autoLeftSetVisual then autoLeftSetVisual(autoLeftEnabled) end
-    elseif kbMatch(KB.AutoRight, kc) then
-        autoRightEnabled = not autoRightEnabled
-        if autoRightEnabled then queueAutoRightStart() else stopAutoRight() end
-        if autoRightSetVisual then autoRightSetVisual(autoRightEnabled) end
-    elseif kbMatch(KB.AutoBat, kc) then
-        if not autoBatEnabled then
-            queueAutoBatStart()
-            if autoBatSetVisual then autoBatSetVisual(true) end
-        else
-            disableAutoBat()
-            if autoBatSetVisual then autoBatSetVisual(false) end
-        end
-    elseif kbMatch(KB.Aimbot2, kc) then
-        if not aimbot2Enabled then
-            queueAimbot2Start()
-            if aimbot2SetVisual then aimbot2SetVisual(true) end
-        else
-            disableAimbot2()
-            if aimbot2SetVisual then aimbot2SetVisual(false) end
-        end
-    elseif kbMatch(KB.GuiHide, kc) then
-        main.Visible = not main.Visible
-    end
-end)
-
-print("Moon Hub Loaded - made by hz and reaper")
