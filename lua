@@ -48,8 +48,24 @@ local function isGuiVisible(obj)
     return true
 end
 
-local blacklistedWords = {"top", "sec", "min", "fps", "ping", "loading", "points", "coins", "cash", "rebirth", "slaps", "money", "speed", "level", "lvl", "score"}
-local commonWords = {["the"]=true,["and"]=true,["for"]=true,["you"]=true,["your"]=true,["now"]=true,["new"]=true,["use"]=true,["get"]=true,["out"]=true,["all"]=true,["are"]=true,["can"]=true,["with"]=true,["from"]=true,["this"]=true,["that"]=true,["here"]=true,["more"]=true,["info"]=true,["redeem"]=true,["claim"]=true,["enter"]=true,["reward"]=true}
+local blacklistedWords = {
+    "top", "sec", "min", "fps", "ping", "loading",
+    "points", "coins", "cash", "rebirth", "slaps", "money",
+    "speed", "level", "lvl", "score"
+}
+
+local commonWords = {
+    ["the"]=true, ["and"]=true, ["for"]=true, ["you"]=true, ["your"]=true,
+    ["now"]=true, ["new"]=true, ["use"]=true, ["get"]=true, ["out"]=true,
+    ["all"]=true, ["are"]=true, ["can"]=true, ["with"]=true, ["from"]=true,
+    ["this"]=true, ["that"]=true, ["here"]=true, ["more"]=true, ["info"]=true,
+    ["redeem"]=true, ["claim"]=true, ["enter"]=true, ["reward"]=true, ["rewards"]=true,
+    ["update"]=true, ["join"]=true, ["group"]=true, ["like"]=true, ["follow"]=true,
+    ["sub"]=true, ["click"]=true, ["type"]=true, ["copy"]=true, ["paste"]=true,
+    ["server"]=true, ["event"]=true, ["live"]=true, ["news"]=true, ["soon"]=true,
+    ["available"]=true, ["expired"]=true, ["welcome"]=true, ["thanks"]=true,
+    ["player"]=true, ["players"]=true
+}
 
 local function isBlacklisted(lowerText)
     if commonWords[lowerText] then return true end
@@ -60,38 +76,44 @@ local function isBlacklisted(lowerText)
 end
 
 local function looksLikeCode(token)
-    if not token or #token < 4 or #token > 20 then return false end
+    if not token then return false end
+    if #token < 4 or #token > 20 then return false end
     if not token:match("^%w+$") then return false end
     if isBlacklisted(token:lower()) then return false end
     local letterCount = 0
-    for _ in token:gmatch("%a") do letterCount += 1 end
+    for _ in token:gmatch("%a") do letterCount = letterCount + 1 end
     if letterCount < 3 then return false end
     if token:match("^%d+[smhdSMHD]$") then return false end
     local hasDigit = token:match("%d") ~= nil
-    local isAllUpper = (token == token:upper()) and token:match("%a")
-    return hasDigit or isAllUpper
+    local isAllUpper = (token == token:upper()) and (token:match("%a") ~= nil)
+    if not (hasDigit or isAllUpper) then return false end
+    return true
 end
 
 local function extractCodesFromText(text)
     local found = {}
     if not text then return found end
-    local trimmed = text:match("^%s*(.-)%s*$"):gsub("<[^>]->", "")
+    local trimmed = text:match("^%s*(.-)%s*$")
+    trimmed = trimmed:gsub("<[^>]->", "")
     if looksLikeCode(trimmed) then
         table.insert(found, trimmed)
         return found
     end
     for token in text:gmatch("%w+") do
-        if looksLikeCode(token) then table.insert(found, token) end
+        if looksLikeCode(token) then
+            table.insert(found, token)
+        end
     end
     return found
 end
 
 local function copyCodeToClipboard(code)
     if setclipboard then pcall(function() setclipboard(code) end) end
-    logStatus("Copied: " .. code)
 end
 
-local function formatCode(code) return code end
+local function formatCode(code)
+    return code
+end
 
 local _cachedBox = nil
 local function _isCodeBox(obj)
@@ -107,35 +129,57 @@ local function findCodeTextBox()
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return nil end
     for _, obj in ipairs(playerGui:GetDescendants()) do
-        if _isCodeBox(obj) and isGuiVisible(obj) then
-            _cachedBox = obj
-            return obj
+        if _isCodeBox(obj) then
+            if isGuiVisible(obj) then
+                _cachedBox = obj
+                return obj
+            end
         end
     end
     return nil
 end
 
 local function fireSignal(sig)
+    if not sig then return end
     pcall(function()
         if getconnections then
-            for _, c in ipairs(getconnections(sig)) do if c.Fire then c:Fire() end end
+            for _, c in ipairs(getconnections(sig)) do
+                if c.Fire then c:Fire() end
+            end
         end
     end)
     if firesignal then pcall(function() firesignal(sig) end) end
 end
 
 local _rfRemote = nil
-local function redeemViaRF(code)
+local function getRedemptionRF()
+    if _rfRemote and _rfRemote.Parent then return _rfRemote end
+    _rfRemote = nil
     local rfFolder = ReplicatedStorage:FindFirstChild("RF")
     if rfFolder then
         local rf = rfFolder:FindFirstChild("RequestRedemption")
         if rf and rf:IsA("RemoteFunction") then
             _rfRemote = rf
-            pcall(function() rf:InvokeServer(formatCode(code)) end)
-            return true
+            return _rfRemote
         end
     end
-    return false
+    if rfFolder then
+        for _, v in ipairs(rfFolder:GetChildren()) do
+            if v.Name == "RequestRedemption" and v:IsA("RemoteFunction") then
+                _rfRemote = v
+                return _rfRemote
+            end
+        end
+    end
+    return _rfRemote
+end
+
+local function redeemViaRF(code)
+    local rf = getRedemptionRF()
+    if not rf then return false end
+    local formatted = formatCode(code)
+    local ok = pcall(function() rf:InvokeServer(formatted) end)
+    return ok
 end
 
 local function writeAndSubmit(code)
@@ -160,7 +204,6 @@ local function writeAndSubmit(code)
             textBox:ReleaseFocus(true)
         end)
         fireSignal(textBox.FocusLost)
-        logStatus("Submitted!")
         table.clear(collectedCodes)
         table.clear(collectedSeen)
         updateCollectedLabel()
@@ -183,10 +226,33 @@ local function triggerWrite()
             local code = table.remove(pendingQueue, 1)
             pendingSeen[code] = nil
             writeAndSubmit(code)
-            task.wait(0.1)
+            task.wait(0.08)
         end
         writeBusy = false
     end)
+end
+
+local function startAutoWriteLoop()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
+    local boxConn = playerGui.DescendantAdded:Connect(function(obj)
+        if _isCodeBox(obj) and isGuiVisible(obj) then
+            _cachedBox = obj
+            triggerWrite()
+        end
+    end)
+    table.insert(activeConnections, boxConn)
+end
+
+local function extractStrings(val, out)
+    out = out or {}
+    if type(val) == "string" then
+        table.insert(out, val)
+    elseif type(val) == "table" then
+        for _, v in pairs(val) do
+            extractStrings(v, out)
+        end
+    end
+    return out
 end
 
 local function processText(text)
@@ -204,7 +270,15 @@ end
 
 local function resolveRemote()
     if _G.PhiNotifyRemote then return _G.PhiNotifyRemote end
-    local Net = ReplicatedStorage:FindFirstChild("Packages") and ReplicatedStorage.Packages:FindFirstChild("Net")
+    local Net
+    local deadline = tick() + 30
+    while not Net and tick() < deadline do
+        pcall(function()
+            local Pkgs = ReplicatedStorage:FindFirstChild("Packages")
+            if Pkgs then Net = Pkgs:FindFirstChild("Net") end
+        end)
+        if not Net then task.wait(0.5) end
+    end
     if not Net then return nil end
     for _, d in ipairs(Net:GetDescendants()) do
         if d:IsA("RemoteEvent") and d.Name:match("^RE/%x+$") then
@@ -222,24 +296,23 @@ local function startMonitoring()
         local conn = NC.OnClientEvent:Connect(function(...)
             if not _G.ScriptEnabled then return end
             local strings = {}
-            for _, v in ipairs({...}) do extractStrings(v, strings) end
-            for _, s in ipairs(strings) do processText(s) end
+            for _, v in ipairs({...}) do
+                extractStrings(v, strings)
+            end
+            for _, s in ipairs(strings) do
+                processText(s)
+            end
         end)
         table.insert(activeConnections, conn)
     end)
 end
 
-local function extractStrings(val, out)
-    out = out or {}
-    if type(val) == "string" then table.insert(out, val)
-    elseif type(val) == "table" then
-        for _, v in pairs(val) do extractStrings(v, out) end
-    end
-    return out
-end
-
 local function cleanupMonitoring()
-    for _, conn in pairs(activeConnections) do pcall(function() conn:Disconnect() end) end
+    for _, conn in pairs(activeConnections) do
+        if typeof(conn) == "RBXScriptConnection" then
+            pcall(function() conn:Disconnect() end)
+        end
+    end
     table.clear(activeConnections)
     table.clear(pendingQueue)
     table.clear(pendingSeen)
@@ -248,9 +321,11 @@ local function cleanupMonitoring()
     writeBusy = false
 end
 
--- ==================== GUI (Küçük + Mavi Tema) ====================
+-- ==================== MOON HUB GUI ====================
 local CoreGui = game:GetService("CoreGui")
-if CoreGui:FindFirstChild("MoonHubCodeRedeemer") then CoreGui.MoonHubCodeRedeemer:Destroy() end
+if CoreGui:FindFirstChild("MoonHubCodeRedeemer") then
+    CoreGui.MoonHubCodeRedeemer:Destroy()
+end
 
 ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MoonHubCodeRedeemer"
@@ -258,129 +333,175 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = CoreGui
 
 local function createAnimatedStroke(parent, thickness, speed)
-    local s = Instance.new("UIStroke", parent)
-    s.Thickness = thickness or 2
-    local g = Instance.new("UIGradient", s)
-    g.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 140, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,255,255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 140, 255))
-    }
+    local s = Instance.new("UIStroke")
+    s.Thickness = thickness or 1.5
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Color = Color3.new(1, 1, 1)
+    s.Parent = parent
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 50, 150)),
+        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(80, 180, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(80, 180, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 50, 150)),
+    })
+    g.Rotation = 0
+    g.Parent = s
     task.spawn(function()
+        local spd = speed or 1.2
         while parent.Parent do
-            g.Rotation = (g.Rotation + (speed or 1.1)) % 360
+            g.Rotation = (g.Rotation + spd) % 360
             task.wait()
         end
     end)
 end
 
 MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 235, 0, 155)
-MainFrame.Position = UDim2.new(0.5, -117.5, 0.5, -77.5)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 40)
-MainFrame.BackgroundTransparency = 0.2
+MainFrame.Size = UDim2.new(0, 220, 0, 145)
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -72)
+MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
+MainFrame.BackgroundTransparency = 0.25
+MainFrame.ClipsDescendants = true
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 
-local corner = Instance.new("UICorner", MainFrame)
-corner.CornerRadius = UDim.new(0, 10)
-createAnimatedStroke(MainFrame, 2.2, 0.85)
+local dragging
+local dragInput
+local dragStart
+local startPos
 
--- Draggable
-local dragging, dragInput, dragStart, startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
 MainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-    end
-end)
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
     end
 end)
 
-local title = Instance.new("TextLabel", MainFrame)
-title.Size = UDim2.new(1, -20, 0, 24)
-title.Position = UDim2.new(0, 12, 0, 8)
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then update(input) end
+end)
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = MainFrame
+createAnimatedStroke(MainFrame, 2, 0.8)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 20)
+title.Position = UDim2.new(0, 10, 0, 5)
 title.BackgroundTransparency = 1
 title.Text = "Moon Hub"
 title.Font = Enum.Font.GothamBlack
-title.TextSize = 17
-title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 16
+title.TextColor3 = Color3.new(1, 1, 1)
 title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = MainFrame
 
-local titleGrad = Instance.new("UIGradient", title)
-titleGrad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 160, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 220, 255))}
+local titleGrad = Instance.new("UIGradient")
+titleGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 160, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(70, 160, 255)),
+})
+titleGrad.Parent = title
 
--- Toggle
-local toggleRow = Instance.new("Frame", MainFrame)
-toggleRow.Size = UDim2.new(1, -20, 0, 42)
-toggleRow.Position = UDim2.new(0, 10, 0, 38)
-toggleRow.BackgroundColor3 = Color3.fromRGB(20, 30, 60)
+task.spawn(function()
+    while MainFrame.Parent do
+        titleGrad.Rotation = (titleGrad.Rotation + 1.2) % 360
+        task.wait()
+    end
+end)
+
+local toggleRow = Instance.new("Frame")
+toggleRow.Size = UDim2.new(1, -20, 0, 40)
+toggleRow.Position = UDim2.new(0, 10, 0, 32)
+toggleRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
+toggleRow.ZIndex = 2
+toggleRow.Parent = MainFrame
 Instance.new("UICorner", toggleRow)
-createAnimatedStroke(toggleRow, 1.5, 1)
+createAnimatedStroke(toggleRow, 1, 1.2)
 
-local toggleLabel = Instance.new("TextLabel", toggleRow)
-toggleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+local toggleLabel = Instance.new("TextLabel")
+toggleLabel.Size = UDim2.new(0, 100, 1, 0)
+toggleLabel.Position = UDim2.new(0, 10, 0, 0)
 toggleLabel.BackgroundTransparency = 1
 toggleLabel.Text = "Auto Redeem"
-toggleLabel.Font = Enum.Font.GothamBold
-toggleLabel.TextSize = 14.5
-toggleLabel.TextColor3 = Color3.new(1,1,1)
+toggleLabel.Font = Enum.Font.GothamBlack
+toggleLabel.TextSize = 13
+toggleLabel.TextColor3 = Color3.new(1, 1, 1)
 toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-toggleLabel.Position = UDim2.new(0, 14, 0, 0)
+toggleLabel.ZIndex = 3
+toggleLabel.Parent = toggleRow
 
-local switchBg = Instance.new("Frame", toggleRow)
-switchBg.Size = UDim2.new(0, 44, 0, 23)
-switchBg.Position = UDim2.new(1, -54, 0.5, -11.5)
+local switchBg = Instance.new("Frame")
+switchBg.Size = UDim2.new(0, 36, 0, 18)
+switchBg.Position = UDim2.new(1, -46, 0.5, -9)
 switchBg.BackgroundTransparency = 1
-Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 12)
-createAnimatedStroke(switchBg, 2, 1.3)
+switchBg.ZIndex = 3
+switchBg.Parent = toggleRow
+Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 9)
+createAnimatedStroke(switchBg, 2, 1.5)
 
-local knob = Instance.new("Frame", switchBg)
-knob.Size = UDim2.new(0, 19, 0, 19)
-knob.Position = UDim2.new(0, 2, 0.5, -9.5)
-knob.BackgroundColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 10)
+local switchKnob = Instance.new("Frame")
+switchKnob.Size = UDim2.new(0, 14, 0, 14)
+switchKnob.Position = UDim2.new(0, 2, 0.5, -7)
+switchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
+switchKnob.ZIndex = 4
+switchKnob.Parent = switchBg
+Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
 
-local toggleBtn = Instance.new("TextButton", toggleRow)
-toggleBtn.Size = UDim2.new(1,0,1,0)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, 0, 1, 0)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Text = ""
+toggleBtn.ZIndex = 4
+toggleBtn.Parent = toggleRow
 
--- Submit After
-local countFrame = Instance.new("Frame", MainFrame)
-countFrame.Size = UDim2.new(1, -20, 0, 36)
-countFrame.Position = UDim2.new(0, 10, 0, 85)
-countFrame.BackgroundColor3 = Color3.fromRGB(20, 30, 60)
+local countFrame = Instance.new("Frame")
+countFrame.Size = UDim2.new(1, -20, 0, 35)
+countFrame.Position = UDim2.new(0, 10, 0, 78)
+countFrame.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
+countFrame.ZIndex = 2
+countFrame.Parent = MainFrame
 Instance.new("UICorner", countFrame)
-createAnimatedStroke(countFrame, 1.3, 1)
+createAnimatedStroke(countFrame, 1, 1.2)
 
-local countLabel = Instance.new("TextLabel", countFrame)
-countLabel.Size = UDim2.new(0.5, 0, 1, 0)
+local countLabel = Instance.new("TextLabel")
+countLabel.Size = UDim2.new(0.55, 0, 1, 0)
+countLabel.Position = UDim2.new(0, 12, 0, 0)
 countLabel.BackgroundTransparency = 1
-countLabel.Text = "Submit After:"
+countLabel.Text = "Submit After"
 countLabel.Font = Enum.Font.GothamSemibold
-countLabel.TextSize = 13
-countLabel.TextColor3 = Color3.new(1,1,1)
+countLabel.TextSize = 12.5
+countLabel.TextColor3 = Color3.new(1, 1, 1)
 countLabel.TextXAlignment = Enum.TextXAlignment.Left
-countLabel.Position = UDim2.new(0, 14, 0, 0)
+countLabel.Parent = countFrame
 
-local countBox = Instance.new("TextBox", countFrame)
-countBox.Size = UDim2.new(0, 60, 0, 26)
-countBox.Position = UDim2.new(1, -70, 0.5, -13)
-countBox.BackgroundColor3 = Color3.fromRGB(10, 15, 40)
+local countBox = Instance.new("TextBox")
+countBox.Size = UDim2.new(0, 55, 0, 26)
+countBox.Position = UDim2.new(1, -65, 0.5, -13)
+countBox.BackgroundColor3 = Color3.fromRGB(25, 35, 65)
 countBox.Text = tostring(_G.SubmitAfterCount)
-countBox.TextColor3 = Color3.new(1,1,1)
+countBox.TextColor3 = Color3.new(1, 1, 1)
 countBox.Font = Enum.Font.GothamBold
-countBox.TextSize = 14
+countBox.TextSize = 13
+countBox.Parent = countFrame
 Instance.new("UICorner", countBox).CornerRadius = UDim.new(0, 6)
 
 countBox.FocusLost:Connect(function()
@@ -394,27 +515,29 @@ countBox.FocusLost:Connect(function()
     end
 end)
 
--- Collected Label
-CollectedLabel = Instance.new("TextLabel", MainFrame)
+CollectedLabel = Instance.new("TextLabel")
 CollectedLabel.Name = "CollectedLabel"
 CollectedLabel.Size = UDim2.new(1, -20, 0, 20)
-CollectedLabel.Position = UDim2.new(0, 10, 0, 125)
+CollectedLabel.Position = UDim2.new(0, 10, 0, 118)
 CollectedLabel.BackgroundTransparency = 1
-CollectedLabel.Text = "Collected: 0/" .. _G.SubmitAfterCount
+CollectedLabel.Text = "Collected: 0/2"
 CollectedLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
 CollectedLabel.TextSize = 13
 CollectedLabel.Font = Enum.Font.GothamSemibold
 CollectedLabel.TextXAlignment = Enum.TextXAlignment.Center
+CollectedLabel.Parent = MainFrame
 
-local StatusLabel = Instance.new("TextLabel", MainFrame)
+local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Name = "StatusLabel"
 StatusLabel.Size = UDim2.new(1, -20, 0, 18)
-StatusLabel.Position = UDim2.new(0, 10, 0, 148)
+StatusLabel.Position = UDim2.new(0, 10, 0, 142)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = "Ready"
-StatusLabel.TextColor3 = Color3.fromRGB(160, 180, 220)
-StatusLabel.TextSize = 12
+StatusLabel.TextColor3 = Color3.fromRGB(160, 170, 190)
+StatusLabel.TextSize = 11.5
 StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
+StatusLabel.Parent = MainFrame
 
 local isToggled = false
 
@@ -424,24 +547,24 @@ local function setToggle(state)
     _G.AutoWriteEnabled = state
     _G.AutoSubmitEnabled = state
 
-    local goal = state and UDim2.new(1, -23, 0.5, -9.5) or UDim2.new(0, 2, 0.5, -9.5)
-    local color = state and Color3.fromRGB(80, 220, 120) or Color3.fromRGB(220, 70, 70)
+    local goal = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    local color = state and Color3.fromRGB(40, 180, 100) or Color3.fromRGB(180, 60, 60)
 
-    TweenService:Create(knob, TweenInfo.new(0.25), {Position = goal}):Play()
-    TweenService:Create(switchBg, TweenInfo.new(0.25), {BackgroundColor3 = color}):Play()
+    TweenService:Create(switchKnob, TweenInfo.new(0.2), {Position = goal}):Play()
+    TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
 
     if state then
         startMonitoring()
-        logStatus("Active")
+        startAutoWriteLoop()
     else
         cleanupMonitoring()
-        logStatus("Stopped")
     end
 end
 
-toggleBtn.MouseButton1Click:Connect(function() setToggle(not isToggled) end)
+toggleBtn.MouseButton1Click:Connect(function()
+    setToggle(not isToggled)
+end)
 
 setToggle(false)
-logStatus("Ready")
 
-print("Moon Hub Code Redeemer Loaded")
+print("Moon Hub Code Copier Loaded")
