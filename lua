@@ -635,8 +635,8 @@ local function createUI()
     Instance.new("UICorner", awSwitchKnob).CornerRadius = UDim.new(0, 7)
 
     local awToggleBtn = Instance.new("TextButton")
-    awToggleBtn.Size = UDim2.new(1, 0, 1, 0)
-    awToggleBtn.Position = UDim2.new(0, 0, 0, 0)
+    awToggleBtn.Size = UDim2.new(0, 36, 0, 18)
+    awToggleBtn.Position = UDim2.new(1, -46, 0.5, -9)
     awToggleBtn.BackgroundTransparency = 1
     awToggleBtn.Text = ""
     awToggleBtn.Parent = autoWriteRow
@@ -681,6 +681,7 @@ local function createUI()
     SubmitBox.Font = Enum.Font.GothamBold
     SubmitBox.ClearTextOnFocus = false
     SubmitBox.TextEditable = true
+    SubmitBox.ZIndex = 10
     SubmitBox.Parent = autoSubmitRow
 
     local submitCorner = Instance.new("UICorner")
@@ -714,10 +715,11 @@ local function createUI()
     Instance.new("UICorner", asSwitchKnob).CornerRadius = UDim.new(0, 7)
 
     local asToggleBtn = Instance.new("TextButton")
-    asToggleBtn.Size = UDim2.new(1, 0, 1, 0)
-    asToggleBtn.Position = UDim2.new(0, 0, 0, 0)
+    asToggleBtn.Size = UDim2.new(0, 36, 0, 18)
+    asToggleBtn.Position = UDim2.new(1, -46, 0.5, -9)
     asToggleBtn.BackgroundTransparency = 1
     asToggleBtn.Text = ""
+    asToggleBtn.ZIndex = 9
     asToggleBtn.Parent = autoSubmitRow
 
     asToggleBtn.MouseButton1Click:Connect(function()
