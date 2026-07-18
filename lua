@@ -140,7 +140,6 @@ LogoTxt.TextYAlignment=Enum.TextYAlignment.Center
 LogoTxt.ZIndex=104
 LogoTxt.Parent=Logo
 
--- FONT ETIKETLERINDEN ARINDIRILMIS DÜZ TITLE
 local TitleL=Instance.new("TextLabel")
 TitleL.Size=UDim2.new(0,100,1,0)
 TitleL.Position=UDim2.new(0,31,0,0)
@@ -439,22 +438,28 @@ local function callAI(prompt)
     return nil
 end
 
--- BLACKLIST TABLOSU
+-- EN YENİ GÜNCEL METİN BLACKLIST TABLOSU
 local CHAT_BLACKLIST = {
     "send starting in", "starting in", "roblox", "creatorid", 
     "system message", "joined the game", "left the game", 
     "setcreatorid", "locked your base for", "locked your base", 
-    "fln", "font"
+    "fln", "font", "live spawns", "ago"
 }
 
 local function extractWords(txt)
     if not txt or type(txt) ~= "string" then return nil end
     local lowerTxt = txt:lower()
     
+    -- Genel cümle bazlı filtreleme
     for _, badWord in ipairs(CHAT_BLACKLIST) do
         if lowerTxt:find(badWord, 1, true) then
             return nil
         end
+    end
+    
+    -- Ekstra dinamik zaman/süre kalıplarını kontrol et (örn: "1s ago", "25m ago", "3h ago")
+    if lowerTxt:match("%d+[smhd]%s+ago") or lowerTxt:match("%d+[smhd]ago") then
+        return nil
     end
     
     local words = {}
@@ -462,6 +467,7 @@ local function extractWords(txt)
         local clean = w:gsub("[^A-Za-z0-9]", "")
         local cleanLower = clean:lower()
         
+        -- DİNAMİK SAYI FİLTRESİ
         local isNumberPattern = cleanLower:match("^%d+[km]%+?$") or cleanLower:match("^%d+$")
         
         if #clean >= 2 and not isNumberPattern then
