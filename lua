@@ -438,28 +438,68 @@ local function callAI(prompt)
     return nil
 end
 
+-- YENİ GELİŞTİRİLMİŞ FİLTRE MOTORU
+local CHAT_BLACKLIST = {
+    "send starting in", "starting in", "font color", "size=", 
+    "font face", "roblox", "creatorid", "system message", 
+    "joined the game", "left the game", "setcreatorid"
+}
+
+local function cleanText(txt)
+    if not txt then return "" end
+    -- Tüm RichText HTML/Font taglarını temizler (<font ...>, </font>)
+    return txt:gsub("<[^>]+>", "")
+end
+
 local function extractWords(txt)
-    local words={}
-    for w in txt:gmatch("%S+") do
-        local clean=w:gsub("[^A-Za-z0-9]","")
-        if #clean>=2 then
-            local isUpper=clean==clean:upper() and clean:match("[A-Z]")
-            local isLower=clean==clean:lower() and clean:match("[a-z]") and #clean>=3
-            if isUpper or isLower then
-                table.insert(words,clean)
+    local cleanedTxt = cleanText(txt)
+    local lowerTxt = cleanedTxt:lower()
+    
+    -- 1. Kelime bazlı genel karaliste kontrolü
+    for _, badWord in ipairs(CHAT_BLACKLIST) do
+        if lowerTxt:find(badWord, 1, true) then
+            return nil
+        end
+    end
+    
+    local words = {}
+    for w in cleanedTxt:gmatch("%S+") do
+        -- Sadece harf ve sayıları tut, noktalama işaretlerini sil
+        local clean = w:gsub("[^A-Za-z0-9]", "")
+        local cleanLower = clean:lower()
+        
+        -- DİNAMİK SAYI FİLTRESİ (Gelişmiş regex kontrolü)
+        -- "5k", "10k", "500k", "1m", "100k+", "25000" gibi tüm sayı varyasyonlarını tamamen bloklar
+        local isNumberPattern = cleanLower:match("^%d+[km]%+?$") or cleanLower:match("^%d+$")
+        
+        if #clean >= 2 and not isNumberPattern then
+            local isUpper = clean == clean:upper() and clean:match("[A-Z]")
+            local isLower = clean == clean:lower() and clean:match("[a-z]") and #clean >= 3
+            
+            -- Kara listedeki tekil kelimelerle eşleşme kontrolü (Örn: "font")
+            local isBlacklisted = false
+            for _, badWord in ipairs(CHAT_BLACKLIST) do
+                if cleanLower == badWord then isBlacklisted = true; break end
+            end
+            
+            if (isUpper or isLower) and not isBlacklisted then
+                table.insert(words, clean)
             end
         end
     end
-    if #words>0 then return table.concat(words," ") end
+    
+    if #words > 0 then return table.concat(words, " ") end
     return nil
 end
 
 local function processGlobal(txt)
     if not _enabled then return end
     if not txt or type(txt)~="string" or #txt<2 then return end
-    if _seen[txt] then return end
-    _seen[txt]=true
-    task.delay(20, function() _seen[txt]=nil end)
+    
+    local cleaned = cleanText(txt)
+    if _seen[cleaned] then return end
+    _seen[cleaned]=true
+    task.delay(20, function() _seen[cleaned]=nil end)
 
     if isRiddle(txt) then
         showRiddle("Solving...",T.Yellow)
@@ -473,7 +513,7 @@ local function processGlobal(txt)
         end
         showRiddle("Asking AI...",T.Yellow)
         task.spawn(function()
-            local ai=callAI("Sammy said: \""..txt.."\". SAB=May2024,Sammy=24. Code only.")
+            local ai=callAI("Sammy said: \""..cleaned.."\". SAB=May2024,Sammy=24. Code only.")
             if ai then
                 showRiddle("AI: "..ai,T.Green)
                 setStatus("AI solved: "..ai,T.Green)
@@ -514,6 +554,9 @@ local function classify(obj)
     for _,b in ipairs(BAD) do if n:find(b) or pn:find(b) then return false end end
     for _,g in ipairs(GOOD) do
         if n:find(g) or pn:find(g) or gpn:find(g) then return true end
+    end
+    for _, badWord in ipairs(CHAT_BLACKLIST) do
+        if n:find(badWord) or pn:find(badWord) then return false end
     end
     return false
 end
