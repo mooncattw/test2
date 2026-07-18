@@ -33,9 +33,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
 local function logStatus(message)
-    if MainFrame and MainFrame:FindFirstChild("StatusLabel") then
-        MainFrame.StatusLabel.Text = "Status: " .. message
-    end
     if ProgressLabel then
         ProgressLabel.Text = #collectedCodes .. "/" .. _G.SubmitAfterCount
     end
@@ -181,12 +178,6 @@ local function copyCodeToClipboard(code)
         success = true
     end
 
-    if success then
-        logStatus("Copied: " .. formattedCode)
-    else
-        logStatus("Error: No clipboard support! " .. formattedCode)
-    end
-
     return success
 end
 
@@ -247,7 +238,6 @@ end
 
 local function fireSubmitButton(nearObj)
     local target = nil
-
     local container = nearObj and nearObj.Parent or nil
     local levels = 0
     while container and not target and levels < 5 do
@@ -260,9 +250,7 @@ local function fireSubmitButton(nearObj)
         container = container.Parent
         levels = levels + 1
     end
-
     if not target then return false end
-
     fireSignal(target.MouseButton1Click)
     fireSignal(target.Activated)
     return true
@@ -272,7 +260,6 @@ local _rfRemote = nil
 local function getRedemptionRF()
     if _rfRemote and _rfRemote.Parent then return _rfRemote end
     _rfRemote = nil
-
     local rfFolder = ReplicatedStorage:FindFirstChild("RF")
     if rfFolder then
         local rf = rfFolder:FindFirstChild("RequestRedemption")
@@ -281,7 +268,6 @@ local function getRedemptionRF()
             return _rfRemote
         end
     end
-
     if rfFolder then
         for _, v in ipairs(rfFolder:GetChildren()) do
             if v.Name == "RequestRedemption" and v:IsA("RemoteFunction") then
@@ -290,7 +276,6 @@ local function getRedemptionRF()
             end
         end
     end
-
     if getinstances then
         for _, v in ipairs(getinstances()) do
             if v.Name == "RequestRedemption" and v:IsA("RemoteFunction") then
@@ -299,7 +284,6 @@ local function getRedemptionRF()
             end
         end
     end
-
     return _rfRemote
 end
 
@@ -311,27 +295,17 @@ local function redeemViaRF(code)
         return rf:InvokeServer(formatted)
     end)
     if ok then
-        logStatus("Redeemed via RF: " .. formatted .. (result ~= nil and (" -> " .. tostring(result)) or ""))
         return true
-    else
-        logStatus("RF invoke failed: " .. tostring(result))
-        return false
     end
+    return false
 end
 
 local function writeAndSubmit(code)
     if redeemViaRF(code) then return true end
-
     local textBox = findCodeTextBox()
-    if not textBox then
-        logStatus("Waiting for an open code box...")
-        return false
-    end
-
+    if not textBox then return false end
     local formatted = formatCode(code)
-
     pcall(function() textBox.ClearTextOnFocus = false end)
-
     if not collectedSeen[formatted] then
         collectedSeen[formatted] = true
         table.insert(collectedCodes, formatted)
@@ -339,7 +313,6 @@ local function writeAndSubmit(code)
     local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
     local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
     local ready = #collectedCodes >= target
-
     if ready and _G.AutoSubmitEnabled then
         local count = #collectedCodes
         local btn = false
@@ -357,8 +330,6 @@ local function writeAndSubmit(code)
             pcall(function() box:ReleaseFocus(true) end)
             if fireSubmitButton(box) then btn = true end
         end
-        logStatus("Submitted " .. count .. " x" .. _G.SubmitAttempts
-            .. " (btn=" .. tostring(btn) .. "): " .. fullText)
         table.clear(collectedCodes)
         table.clear(collectedSeen)
     else
@@ -371,14 +342,10 @@ local function writeAndSubmit(code)
             pcall(function() textBox.Text = fullText end)
         end
         if ready then
-            logStatus("Collected " .. #collectedCodes .. " codes (submit off): " .. fullText)
             table.clear(collectedCodes)
             table.clear(collectedSeen)
-        else
-            logStatus("Added: " .. formatted .. "  (" .. #collectedCodes .. "/" .. target .. ")")
         end
     end
-
     return true
 end
 
@@ -400,7 +367,7 @@ local function triggerWrite()
             end
         end)
         writeBusy = false
-        if not ok then warn("[BrainrotCopier] triggerWrite error: " .. tostring(err)) end
+        if not ok then warn("[CodeSniper] triggerWrite error: " .. tostring(err)) end
     end)
 end
 
@@ -438,27 +405,22 @@ end
 
 local function processText(text)
     if not text or text == "" then return end
-
     local codes = extractCodesFromText(text)
     if #codes == 0 then return end
-
     for _, code in ipairs(codes) do
         copyCodeToClipboard(code)
         latestCode = code
-
         if not pendingSeen[code] then
             pendingSeen[code] = true
             table.insert(pendingQueue, code)
             triggerWrite()
         end
-
         logStatus("Code detected: " .. code)
     end
 end
 
 local function resolveRemote()
     if _G.PhiNotifyRemote then return _G.PhiNotifyRemote end
-
     local Net
     local deadline = tick() + 30
     while not Net and tick() < deadline do
@@ -469,9 +431,7 @@ local function resolveRemote()
         if not Net then task.wait(0.5) end
     end
     if not Net then return nil end
-
     local getinfo = debug and (debug.getinfo or debug.info)
-
     if getconnections and getinfo then
         for _, d in ipairs(Net:GetDescendants()) do
             if d:IsA("RemoteEvent") then
@@ -481,9 +441,7 @@ local function resolveRemote()
                         local f, fn = pcall(function() return c.Function end)
                         if f and type(fn) == "function" then
                             local i, info = pcall(getinfo, fn)
-                            if i and tostring(
-                                (type(info) == "table" and (info.short_src or info.source)) or info or ""
-                            ):find("NotificationController", 1, true) then
+                            if i and tostring((type(info) == "table" and (info.short_src or info.source)) or info or ""):find("NotificationController", 1, true) then
                                 _G.PhiNotifyRemote = d
                                 return d
                             end
@@ -493,28 +451,19 @@ local function resolveRemote()
             end
         end
     end
-
     for _, d in ipairs(Net:GetDescendants()) do
         if d:IsA("RemoteEvent") and d.Name:match("^RE/%x+$") then
             _G.PhiNotifyRemote = d
             return d
         end
     end
-
     return nil
 end
 
 local function startMonitoring()
     task.spawn(function()
-        logStatus("Resolving PhiNotify remote...")
-
         local NC = resolveRemote()
-
-        if not NC then
-            logStatus("PhiNotify remote not found — hook failed.")
-            return
-        end
-
+        if not NC then return end
         local conn = NC.OnClientEvent:Connect(function(...)
             if not _G.ScriptEnabled then return end
             local strings = {}
@@ -525,9 +474,7 @@ local function startMonitoring()
                 processText(s)
             end
         end)
-
         table.insert(activeConnections, conn)
-        logStatus("Hooked " .. NC.Name .. " — listening!")
     end)
 end
 
@@ -555,7 +502,6 @@ local function createAnimatedStroke(parent, thickness, speed)
     s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     s.Color = Color3.new(1, 1, 1)
     s.Parent = parent
-
     local g = Instance.new("UIGradient")
     g.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 50, 150)),
@@ -566,7 +512,6 @@ local function createAnimatedStroke(parent, thickness, speed)
     })
     g.Rotation = 0
     g.Parent = s
-
     task.spawn(function()
         local spd = speed or 1.2
         while parent.Parent do
@@ -574,7 +519,6 @@ local function createAnimatedStroke(parent, thickness, speed)
             task.wait()
         end
     end)
-
     return s, g
 end
 
@@ -586,7 +530,6 @@ local function createUI()
     ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "BrainrotRedeemerGui"
     ScreenGui.ResetOnSpawn = false
-
     local successParent = pcall(function()
         ScreenGui.Parent = game:GetService("CoreGui")
     end)
@@ -596,14 +539,13 @@ local function createUI()
 
     MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 220, 0, 160)
-    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -80)
+    MainFrame.Size = UDim2.new(0, 220, 0, 140)
+    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -70)
     MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
     MainFrame.BackgroundTransparency = 0.25
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
     MainFrame.Draggable = true
-    MainFrame.ClipsDescendants = true
     MainFrame.Parent = ScreenGui
 
     local mainCorner = Instance.new("UICorner")
@@ -613,7 +555,6 @@ local function createUI()
     createAnimatedStroke(MainFrame, 2, 0.8)
 
     local dragging, dragInput, dragStart, startPos
-
     local function update(input)
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -653,7 +594,6 @@ local function createUI()
     title.TextSize = 16
     title.TextColor3 = Color3.new(1, 1, 1)
     title.TextXAlignment = Enum.TextXAlignment.Left
-    title.ZIndex = 9
     title.Parent = MainFrame
 
     local titleGrad = Instance.new("UIGradient")
@@ -675,20 +615,18 @@ local function createUI()
     subtitle.Size = UDim2.new(1, -20, 0, 15)
     subtitle.Position = UDim2.new(0, 10, 0, 23)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "Code Copier"
+    subtitle.Text = "Code Sniper"
     subtitle.Font = Enum.Font.GothamMedium
     subtitle.TextSize = 11
     subtitle.TextColor3 = Color3.new(1, 1, 1)
     subtitle.TextTransparency = 0.3
     subtitle.TextXAlignment = Enum.TextXAlignment.Left
-    subtitle.ZIndex = 9
     subtitle.Parent = MainFrame
 
     local autoWriteRow = Instance.new("Frame")
     autoWriteRow.Size = UDim2.new(1, -20, 0, 40)
     autoWriteRow.Position = UDim2.new(0, 10, 0, 45)
     autoWriteRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-    autoWriteRow.ZIndex = 2
     autoWriteRow.Parent = MainFrame
 
     Instance.new("UICorner", autoWriteRow).CornerRadius = UDim.new(0, 8)
@@ -703,14 +641,12 @@ local function createUI()
     awLabel.TextSize = 13
     awLabel.TextColor3 = Color3.new(1, 1, 1)
     awLabel.TextXAlignment = Enum.TextXAlignment.Left
-    awLabel.ZIndex = 3
     awLabel.Parent = autoWriteRow
 
     local awSwitchBg = Instance.new("Frame")
     awSwitchBg.Size = UDim2.new(0, 36, 0, 18)
     awSwitchBg.Position = UDim2.new(1, -46, 0.5, -9)
     awSwitchBg.BackgroundTransparency = 1
-    awSwitchBg.ZIndex = 3
     awSwitchBg.Parent = autoWriteRow
 
     Instance.new("UICorner", awSwitchBg).CornerRadius = UDim.new(0, 9)
@@ -719,8 +655,7 @@ local function createUI()
     local awSwitchKnob = Instance.new("Frame")
     awSwitchKnob.Size = UDim2.new(0, 14, 0, 14)
     awSwitchKnob.Position = UDim2.new(1, -16, 0.5, -7)
-    awSwitchKnob.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
-    awSwitchKnob.ZIndex = 4
+    awSwitchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
     awSwitchKnob.Parent = awSwitchBg
 
     Instance.new("UICorner", awSwitchKnob).CornerRadius = UDim.new(0, 7)
@@ -730,7 +665,6 @@ local function createUI()
     awToggleBtn.Position = UDim2.new(0, 0, 0, 0)
     awToggleBtn.BackgroundTransparency = 1
     awToggleBtn.Text = ""
-    awToggleBtn.ZIndex = 4
     awToggleBtn.Parent = autoWriteRow
 
     awToggleBtn.MouseButton1Click:Connect(function()
@@ -753,9 +687,8 @@ local function createUI()
 
     local autoSubmitRow = Instance.new("Frame")
     autoSubmitRow.Size = UDim2.new(1, -20, 0, 40)
-    autoSubmitRow.Position = UDim2.new(0, 10, 0, 95)
+    autoSubmitRow.Position = UDim2.new(0, 10, 0, 90)
     autoSubmitRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-    autoSubmitRow.ZIndex = 2
     autoSubmitRow.Parent = MainFrame
 
     Instance.new("UICorner", autoSubmitRow).CornerRadius = UDim.new(0, 8)
@@ -770,14 +703,37 @@ local function createUI()
     asLabel.TextSize = 13
     asLabel.TextColor3 = Color3.new(1, 1, 1)
     asLabel.TextXAlignment = Enum.TextXAlignment.Left
-    asLabel.ZIndex = 3
     asLabel.Parent = autoSubmitRow
+
+    local SubmitBox = Instance.new("TextBox")
+    SubmitBox.Name = "SubmitBox"
+    SubmitBox.Size = UDim2.new(0, 55, 0, 22)
+    SubmitBox.Position = UDim2.new(0, 95, 0.5, -11)
+    SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
+    SubmitBox.Text = _G.SubmitAfterCount
+    SubmitBox.PlaceholderText = "1"
+    SubmitBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubmitBox.TextSize = 12
+    SubmitBox.Font = Enum.Font.GothamBold
+    SubmitBox.ClearTextOnFocus = false
+    SubmitBox.Parent = autoSubmitRow
+
+    local submitCorner = Instance.new("UICorner")
+    submitCorner.CornerRadius = UDim.new(0, 10)
+    submitCorner.Parent = SubmitBox
+
+    SubmitBox.FocusLost:Connect(function()
+        local n = math.floor(tonumber(SubmitBox.Text) or 0)
+        if n < 1 then n = 1 end
+        _G.SubmitAfterCount = n
+        SubmitBox.Text = tostring(n)
+        logStatus()
+    end)
 
     local asSwitchBg = Instance.new("Frame")
     asSwitchBg.Size = UDim2.new(0, 36, 0, 18)
-    asSwitchBg.Position = UDim2.new(1, -106, 0.5, -9)
+    asSwitchBg.Position = UDim2.new(1, -46, 0.5, -9)
     asSwitchBg.BackgroundTransparency = 1
-    asSwitchBg.ZIndex = 3
     asSwitchBg.Parent = autoSubmitRow
 
     Instance.new("UICorner", asSwitchBg).CornerRadius = UDim.new(0, 9)
@@ -786,8 +742,7 @@ local function createUI()
     local asSwitchKnob = Instance.new("Frame")
     asSwitchKnob.Size = UDim2.new(0, 14, 0, 14)
     asSwitchKnob.Position = UDim2.new(1, -16, 0.5, -7)
-    asSwitchKnob.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
-    asSwitchKnob.ZIndex = 4
+    asSwitchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
     asSwitchKnob.Parent = asSwitchBg
 
     Instance.new("UICorner", asSwitchKnob).CornerRadius = UDim.new(0, 7)
@@ -797,7 +752,6 @@ local function createUI()
     asToggleBtn.Position = UDim2.new(0, 0, 0, 0)
     asToggleBtn.BackgroundTransparency = 1
     asToggleBtn.Text = ""
-    asToggleBtn.ZIndex = 4
     asToggleBtn.Parent = autoSubmitRow
 
     asToggleBtn.MouseButton1Click:Connect(function()
@@ -806,59 +760,19 @@ local function createUI()
         local newColor = _G.AutoSubmitEnabled and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
         TweenService:Create(asSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
         TweenService:Create(asSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
-        logStatus("Auto-Submit " .. (_G.AutoSubmitEnabled and "active" or "disabled") .. ".")
+        logStatus()
     end)
-
-    local SubmitBox = Instance.new("TextBox")
-    SubmitBox.Name = "SubmitBox"
-    SubmitBox.Size = UDim2.new(0, 55, 0, 22)
-    SubmitBox.Position = UDim2.new(1, -65, 0.5, -11)
-    SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
-    SubmitBox.Text = _G.SubmitAfterCount
-    SubmitBox.PlaceholderText = "1"
-    SubmitBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SubmitBox.TextSize = 12
-    SubmitBox.Font = Enum.Font.GothamBold
-    SubmitBox.ClearTextOnFocus = false
-    SubmitBox.ZIndex = 5
-    SubmitBox.Parent = autoSubmitRow
-
-    local submitCorner = Instance.new("UICorner")
-    submitCorner.CornerRadius = UDim.new(0, 5)
-    submitCorner.Parent = SubmitBox
-
-    SubmitBox.FocusLost:Connect(function()
-        local n = math.floor(tonumber(SubmitBox.Text) or 0)
-        if n < 1 then n = 1 end
-        _G.SubmitAfterCount = n
-        SubmitBox.Text = tostring(n)
-        logStatus("Will submit after " .. n .. " code(s).")
-    end)
-
-    local StatusLabel = Instance.new("TextLabel")
-    StatusLabel.Name = "StatusLabel"
-    StatusLabel.Size = UDim2.new(1, -20, 0, 20)
-    StatusLabel.Position = UDim2.new(0, 10, 0, 125)
-    StatusLabel.BackgroundTransparency = 1
-    StatusLabel.Text = "Status: Script loaded. Waiting..."
-    StatusLabel.TextColor3 = Color3.fromRGB(170, 170, 185)
-    StatusLabel.TextSize = 11
-    StatusLabel.Font = Enum.Font.Gotham
-    StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
-    StatusLabel.ZIndex = 3
-    StatusLabel.Parent = MainFrame
 
     ProgressLabel = Instance.new("TextLabel")
     ProgressLabel.Name = "ProgressLabel"
     ProgressLabel.Size = UDim2.new(0, 80, 0, 20)
-    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 125)
+    ProgressLabel.Position = UDim2.new(0.5, -40, 0, 105)
     ProgressLabel.BackgroundTransparency = 1
     ProgressLabel.Text = "0/" .. _G.SubmitAfterCount
     ProgressLabel.TextColor3 = Color3.fromRGB(40, 100, 220)
     ProgressLabel.TextSize = 12
     ProgressLabel.Font = Enum.Font.GothamBold
     ProgressLabel.TextXAlignment = Enum.TextXAlignment.Center
-    ProgressLabel.ZIndex = 3
     ProgressLabel.Parent = MainFrame
 end
 
@@ -867,7 +781,7 @@ local function init()
     createUI()
     startMonitoring()
     startAutoWriteLoop()
-    logStatus("Initialization successful!")
+    logStatus()
 end
 
 init()
