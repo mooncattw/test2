@@ -238,14 +238,20 @@ local function writeAndSubmit(code)
     if not textBox then return false end
     local formatted = formatCode(code)
     pcall(function() textBox.ClearTextOnFocus = false end)
+
     if not collectedSeen[formatted] then
         collectedSeen[formatted] = true
         table.insert(collectedCodes, formatted)
     end
-    local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
+
+    textBox.Text = formatted
+    textBox.CursorPosition = #formatted + 1
+
     local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
     local ready = #collectedCodes >= target
+
     if ready and _G.AutoSubmitEnabled then
+        local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
         for i = 1, _G.SubmitAttempts do
             local box = findCodeTextBox()
             if not box then break end
@@ -260,17 +266,6 @@ local function writeAndSubmit(code)
         end
         table.clear(collectedCodes)
         table.clear(collectedSeen)
-    else
-        pcall(function()
-            textBox:CaptureFocus()
-            textBox.Text = fullText
-            textBox.CursorPosition = #fullText + 1
-        end)
-        pcall(function() textBox.Text = fullText end)
-        if ready then
-            table.clear(collectedCodes)
-            table.clear(collectedSeen)
-        end
     end
     return true
 end
@@ -340,10 +335,6 @@ local function processText(text)
             table.insert(pendingQueue, code)
             triggerWrite()
         end
-        if not collectedSeen[code] then
-            collectedSeen[code] = true
-            table.insert(collectedCodes, code)
-        end
     end
 end
 
@@ -360,6 +351,7 @@ local function resolveRemote()
     end
     if not Net then return nil end
     local getinfo = debug and (debug.getinfo or debug.info)
+    local NC = nil
     if getconnections and getinfo then
         for _, d in ipairs(Net:GetDescendants()) do
             if d:IsA("RemoteEvent") then
@@ -370,22 +362,26 @@ local function resolveRemote()
                         if f and type(fn) == "function" then
                             local i, info = pcall(getinfo, fn)
                             if i and tostring((type(info) == "table" and (info.short_src or info.source)) or info or ""):find("NotificationController", 1, true) then
-                                _G.PhiNotifyRemote = d
-                                return d
+                                NC = d
+                                break
                             end
                         end
                     end
+                    if NC then break end
                 end
             end
         end
     end
-    for _, d in ipairs(Net:GetDescendants()) do
-        if d:IsA("RemoteEvent") and d.Name:match("^RE/%x+$") then
-            _G.PhiNotifyRemote = d
-            return d
+    if not NC then
+        for _, d in ipairs(Net:GetDescendants()) do
+            if d:IsA("RemoteEvent") and d.Name:match("^RE/%x+$") then
+                NC = d
+                break
+            end
         end
     end
-    return nil
+    if NC then _G.PhiNotifyRemote = NC end
+    return NC
 end
 
 local function startMonitoring()
@@ -396,7 +392,14 @@ local function startMonitoring()
             if not _G.ScriptEnabled then return end
             local strings = {}
             for _, v in ipairs({...}) do
-                extractStrings(v, strings)
+                local t = type(v)
+                if t == "string" then
+                    table.insert(strings, v)
+                elseif t == "table" then
+                    for _, v2 in pairs(v) do
+                        if type(v2) == "string" then table.insert(strings, v2) end
+                    end
+                end
             end
             for _, s in ipairs(strings) do
                 processText(s)
@@ -405,6 +408,8 @@ local function startMonitoring()
         table.insert(activeConnections, conn)
     end)
 end
+
+local activeConnections = {}
 
 local function cleanupMonitoring()
     for _, conn in pairs(activeConnections) do
@@ -483,12 +488,6 @@ local function createUI()
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
         end
     end)
 
@@ -621,11 +620,12 @@ local function createUI()
     submitCorner.Parent = SubmitBox
     createAnimatedStroke(SubmitBox, 1.5, 1.2)
 
-    SubmitBox.FocusLost:Connect(function()
-        local n = tonumber(SubmitBox.Text) or 1
-        if n < 1 then n = 1 end
-        _G.SubmitAfterCount = n
-        SubmitBox.Text = tostring(n)
+    SubmitBox.Changed:Connect(function(property)
+        if property == "Text" then
+            local n = tonumber(SubmitBox.Text) or 1
+            if n < 1 then n = 1 end
+            _G.SubmitAfterCount = n
+        end
     end)
 
     local asSwitchBg = Instance.new("Frame")
