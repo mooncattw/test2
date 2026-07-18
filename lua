@@ -140,15 +140,16 @@ LogoTxt.TextYAlignment=Enum.TextYAlignment.Center
 LogoTxt.ZIndex=104
 LogoTxt.Parent=Logo
 
+-- FONT ETIKETLERINDEN ARINDIRILMIS DÜZ TITLE
 local TitleL=Instance.new("TextLabel")
 TitleL.Size=UDim2.new(0,100,1,0)
 TitleL.Position=UDim2.new(0,31,0,0)
 TitleL.BackgroundTransparency=1
-TitleL.RichText=true
-TitleL.Text='<font color="rgb(90,150,255)">SDLC</font> <font color="rgb(170,190,255)" size="10">Paste</font>'
+TitleL.RichText=false
+TitleL.Text="SDLC Paste"
 TitleL.TextSize=12
 TitleL.Font=Enum.Font.GothamBold
-TitleL.TextColor3=T.White
+TitleL.TextColor3=T.Accent
 TitleL.TextXAlignment=Enum.TextXAlignment.Left
 TitleL.TextYAlignment=Enum.TextYAlignment.Center
 TitleL.ZIndex=102
@@ -438,31 +439,18 @@ local function callAI(prompt)
     return nil
 end
 
--- GENİŞLETİLMİŞ SÜPER KARA LİSTE
+-- BLACKLIST TABLOSU
 local CHAT_BLACKLIST = {
-    "send starting in", "starting in", "font color", "size=", 
-    "font face", "roblox", "creatorid", "system message", 
-    "joined the game", "left the game", "setcreatorid",
-    "locked your base for", "locked your base", "fln"
+    "send starting in", "starting in", "roblox", "creatorid", 
+    "system message", "joined the game", "left the game", 
+    "setcreatorid", "locked your base for", "locked your base", 
+    "fln", "font"
 }
 
-local function cleanText(txt)
-    if not txt then return "" end
-    -- Arayüz etiketlerini (<font ...>, </font>) temizle
-    local clean = txt:gsub("<[^>]+>", "")
-    
-    -- Oyuncu adlarının oluşturduğu kirliliği önlemek için "[KullaniciAdi]: " yapısını temizle
-    clean = clean:gsub("^%s*%[[^%]]+%]%s*:%s*", "") 
-    clean = clean:gsub("^%s*[^:]+%s*:%s*", "")
-    
-    return clean
-end
-
 local function extractWords(txt)
-    local cleanedTxt = cleanText(txt)
-    local lowerTxt = cleanedTxt:lower()
+    if not txt or type(txt) ~= "string" then return nil end
+    local lowerTxt = txt:lower()
     
-    -- 1. Cümle bazlı genel filtreleme
     for _, badWord in ipairs(CHAT_BLACKLIST) do
         if lowerTxt:find(badWord, 1, true) then
             return nil
@@ -470,19 +458,16 @@ local function extractWords(txt)
     end
     
     local words = {}
-    for w in cleanedTxt:gmatch("%S+") do
+    for w in txt:gmatch("%S+") do
         local clean = w:gsub("[^A-Za-z0-9]", "")
         local cleanLower = clean:lower()
         
-        -- DİNAMİK SAYI FİLTRESİ
-        -- 5k, 10k, 500k, 1m, 100k+, 25000 vb. tüm sayı kombinasyonlarını eler
         local isNumberPattern = cleanLower:match("^%d+[km]%+?$") or cleanLower:match("^%d+$")
         
         if #clean >= 2 and not isNumberPattern then
             local isUpper = clean == clean:upper() and clean:match("[A-Z]")
             local isLower = clean == clean:lower() and clean:match("[a-z]") and #clean >= 3
             
-            -- Tekil kelime filtresi
             local isBlacklisted = false
             for _, badWord in ipairs(CHAT_BLACKLIST) do
                 if cleanLower == badWord then isBlacklisted = true; break end
@@ -502,10 +487,9 @@ local function processGlobal(txt)
     if not _enabled then return end
     if not txt or type(txt)~="string" or #txt<2 then return end
     
-    local cleaned = cleanText(txt)
-    if _seen[cleaned] then return end
-    _seen[cleaned]=true
-    task.delay(20, function() _seen[cleaned]=nil end)
+    if _seen[txt] then return end
+    _seen[txt]=true
+    task.delay(20, function() _seen[txt]=nil end)
 
     if isRiddle(txt) then
         showRiddle("Solving...",T.Yellow)
@@ -519,7 +503,7 @@ local function processGlobal(txt)
         end
         showRiddle("Asking AI...",T.Yellow)
         task.spawn(function()
-            local ai=callAI("Sammy said: \""..cleaned.."\". SAB=May2024,Sammy=24. Code only.")
+            local ai=callAI("Sammy said: \""..txt.."\". SAB=May2024,Sammy=24. Code only.")
             if ai then
                 showRiddle("AI: "..ai,T.Green)
                 setStatus("AI solved: "..ai,T.Green)
