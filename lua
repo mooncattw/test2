@@ -438,26 +438,40 @@ local function callAI(prompt)
     return nil
 end
 
--- EN YENİ GÜNCEL METİN BLACKLIST TABLOSU
+-- GENİŞLETİLMİŞ VE KESİN BLACKLIST TABLOSU
 local CHAT_BLACKLIST = {
     "send starting in", "starting in", "roblox", "creatorid", 
     "system message", "joined the game", "left the game", 
     "setcreatorid", "locked your base for", "locked your base", 
-    "fln", "font", "live spawns", "ago"
+    "fln", "font", "live spawns", "ago", "send", "my base", "player base"
 }
 
 local function extractWords(txt)
     if not txt or type(txt) ~= "string" then return nil end
     local lowerTxt = txt:lower()
     
-    -- Genel cümle bazlı filtreleme
+    -- 1. Genel Cümle/Kelime Bazlı Filtreleme
     for _, badWord in ipairs(CHAT_BLACKLIST) do
         if lowerTxt:find(badWord, 1, true) then
             return nil
         end
     end
     
-    -- Ekstra dinamik zaman/süre kalıplarını kontrol et (örn: "1s ago", "25m ago", "3h ago")
+    -- 2. "Base 1", "Base 2", "Base 12" gibi dinamik base isimlerini engelleme
+    if lowerTxt:match("base%s*%d+") then
+        return nil
+    end
+    
+    -- 3. Oyundaki aktif oyuncu adlarını dinamik olarak eşleştirip engelleme
+    for _, player in ipairs(Players:GetPlayers()) do
+        local pName = player.Name:lower()
+        local pDisp = player.DisplayName:lower()
+        if lowerTxt:find(pName, 1, true) or lowerTxt:find(pDisp, 1, true) then
+            return nil
+        end
+    end
+    
+    -- 4. Zaman kalıpları filtreleme ("1s ago", "2m ago")
     if lowerTxt:match("%d+[smhd]%s+ago") or lowerTxt:match("%d+[smhd]ago") then
         return nil
     end
@@ -467,7 +481,7 @@ local function extractWords(txt)
         local clean = w:gsub("[^A-Za-z0-9]", "")
         local cleanLower = clean:lower()
         
-        -- DİNAMİK SAYI FİLTRESİ
+        -- Dinamik sayı filtreleme (500k, 10m, 2500 vb.)
         local isNumberPattern = cleanLower:match("^%d+[km]%+?$") or cleanLower:match("^%d+$")
         
         if #clean >= 2 and not isNumberPattern then
