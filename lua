@@ -20,6 +20,7 @@ pcall(function()
     end
 end)
 
+-- Config
 local sliderValue = 0.915
 local laggerPower = 50
 local speedBoostMax = 27.5
@@ -53,6 +54,7 @@ local decorationOriginal = {}
 local decorationWatcher = nil
 local decorationEnabled = false
 
+-- Helper Functions
 local function getDecorationParts()
     local parts = {}
     local plots = Workspace:FindFirstChild("Plots")
@@ -459,14 +461,14 @@ local function ExecuteAlignDown()
     end
 end
 
--- GUI
+-- NEW GUI (Moon Hub Style)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DZ FLASH TP"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
 
--- Watermark
+-- Watermark (FPS/Ping)
 local WatermarkFrame = Instance.new("Frame")
 WatermarkFrame.Name = "TopWatermark"
 WatermarkFrame.Size = UDim2.new(0, 160, 0, 30)
@@ -531,18 +533,6 @@ RunService.Heartbeat:Connect(function()
     end)
     StatsLabel.Text = ping .. " | " .. fps
 end)
-
-local DiscordWatermark = Instance.new("TextLabel")
-DiscordWatermark.Size = UDim2.new(1, 0, 0, 10)
-DiscordWatermark.Position = UDim2.new(0, 0, 0, 20)
-DiscordWatermark.BackgroundTransparency = 1
-DiscordWatermark.Text = "discord.gg/x7qeMqPUt"
-DiscordWatermark.TextColor3 = WHITE
-DiscordWatermark.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-DiscordWatermark.TextStrokeTransparency = 0
-DiscordWatermark.Font = Enum.Font.Gotham
-DiscordWatermark.TextSize = 8
-DiscordWatermark.Parent = WatermarkFrame
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
@@ -691,7 +681,7 @@ PlusBtn.MouseButton1Click:Connect(function()
     PlusBtn.Text = SettingsFrame.Visible and "-" or "+"
 end)
 
--- Helper Functions
+-- Helper Functions for GUI
 local function roundToHalf(val)
     return math.round(val * 2) / 2
 end
@@ -741,13 +731,13 @@ local function makeToggle(labelText, yPos, targetParent, isPureUi, extraAction)
 
     local function updateToggleVisual()
         if state then
-            btn.BackgroundColor3 = WHITE
+            btn.BackgroundColor3 = LIGHT_BLUE
             knob.Position = UDim2.new(1, -11, 0.5, -4.5)
             knob.BackgroundColor3 = Color3.new(0, 0, 0)
             toggleStroke.Transparency = 0
             knobStroke.Transparency = 0.3
         else
-            btn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+            btn.BackgroundColor3 = WHITE
             knob.Position = UDim2.new(0, 2, 0.5, -4.5)
             knob.BackgroundColor3 = GRAY
             toggleStroke.Transparency = 0.5
@@ -1445,81 +1435,4 @@ local rejoinBindBtn = makeUtilityButtonWithKeybind("Rejoin Server", 182, rejoinK
 local kickBindBtn = makeUtilityButtonWithKeybind("Kick User", 208, kickKeybind, function() game:Shutdown() end, function(val) bindingKickKey = val end)
 
 local BottomDiscord = Instance.new("TextLabel")
-BottomDiscord.Size = UDim2.new(1, 0, 0, 11)
-BottomDiscord.Position = UDim2.new(0, 0, 1, -13)
-BottomDiscord.BackgroundTransparency = 1
-BottomDiscord.Text = "discord.gg/x7qeMqPUt"
-BottomDiscord.TextColor3 = WHITE
-BottomDiscord.Font = Enum.Font.Gotham
-BottomDiscord.TextSize = 8
-BottomDiscord.TextXAlignment = Enum.TextXAlignment.Center
-BottomDiscord.Parent = MainFrame
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if bindingAlignKey then
-        if input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode ~= Enum.KeyCode.MouseButton1 then
-            alignKey = input.KeyCode
-            bindingAlignKey = false
-            AlignKeybindBtn.Text = "[" .. alignKey.Name .. "]"
-            saveSettings()
-        end
-        return
-    end
-    if bindingAlignDownKey then
-        if input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode ~= Enum.KeyCode.MouseButton1 then
-            alignDownKey = input.KeyCode
-            bindingAlignDownKey = false
-            AlignDownKeybindBtn.Text = "[" .. alignDownKey.Name .. "]"
-            saveSettings()
-        end
-        return
-    end
-    if bindingResetKey then
-        if input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode ~= Enum.KeyCode.MouseButton1 then
-            resetKeybind = input.KeyCode
-            bindingResetKey = false
-            resetBindBtn.Text = "[" .. resetKeybind.Name .. "]"
-            resetBindBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
-            saveSettings()
-        end
-        return
-    end
-    if bindingRejoinKey then
-        if input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode ~= Enum.KeyCode.MouseButton1 then
-            rejoinKeybind = input.KeyCode
-            bindingRejoinKey = false
-            rejoinBindBtn.Text = "[" .. rejoinKeybind.Name .. "]"
-            rejoinBindBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
-            saveSettings()
-        end
-        return
-    end
-    if bindingKickKey then
-        if input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode ~= Enum.KeyCode.MouseButton1 then
-            kickKeybind = input.KeyCode
-            bindingKickKey = false
-            kickBindBtn.Text = "[" .. kickKeybind.Name .. "]"
-            kickBindBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
-            saveSettings()
-        end
-        return
-    end
-    if input.KeyCode == alignKey then
-        ExecuteAlign()
-    elseif input.KeyCode == alignDownKey then
-        ExecuteAlignDown()
-    elseif input.KeyCode == resetKeybind then
-        instantReset()
-    elseif input.KeyCode == rejoinKeybind then
-        rejoin()
-    elseif input.KeyCode == kickKeybind then
-        game:Shutdown()
-    end
-end)
-
-LocalPlayer.CharacterAdded:Connect(function(newChar)
-    task.wait(0.3)
-    if toggleStates["Speed Boost"] then enableSpeedBoost() end
-    if toggleStates["FOV"] then enableFovChanger() end
-end)
+BottomDiscord.Size = UDim2.new
