@@ -328,6 +328,18 @@ task.spawn(function()
     end
 end)
 
+-- Flash TP Text (white, under title)
+local flashTpText = Instance.new("TextLabel")
+flashTpText.Size = UDim2.new(1, -20, 0, 14)
+flashTpText.Position = UDim2.new(0, 10, 0, 32)
+flashTpText.BackgroundTransparency = 1
+flashTpText.Text = "Flash TP"
+flashTpText.TextColor3 = WHITE
+flashTpText.Font = Enum.Font.Gotham
+flashTpText.TextSize = 10
+flashTpText.TextXAlignment = Enum.TextXAlignment.Left
+flashTpText.Parent = main
+
 -- Settings Button
 local settingsBtn = Instance.new("TextButton")
 settingsBtn.Size = UDim2.new(0, 28, 0, 28)
@@ -344,15 +356,15 @@ createAnimatedStroke(settingsBtn, 1, 1.5)
 
 -- Buttons Container
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -20, 0, 110)
-buttonsContainer.Position = UDim2.new(0, 10, 0, 35)
+buttonsContainer.Size = UDim2.new(1, -20, 0, 70)
+buttonsContainer.Position = UDim2.new(0, 10, 0, 50)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = main
 
 -- Settings Scroll Frame
 local settingsScroll = Instance.new("ScrollingFrame")
 settingsScroll.Size = UDim2.new(1, -20, 0, 110)
-settingsScroll.Position = UDim2.new(0, 10, 0, 35)
+settingsScroll.Position = UDim2.new(0, 10, 0, 50)
 settingsScroll.BackgroundTransparency = 1
 settingsScroll.ScrollBarThickness = 4
 settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 220)
@@ -541,13 +553,13 @@ local function createMainToggle(name, yPos, defaultState, onToggle)
 end
 
 -- Main Buttons
-createMainToggle("FLASH TP", 5, toggleStates["FLASH TP"])
-createMainToggle("GIANT POTION", 32, toggleStates["Giant Potion"])
+createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
+createMainToggle("GIANT POTION", 24, toggleStates["Giant Potion"])
 
 -- ALIGN Button (always blue)
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 59)
+alignBtn.Position = UDim2.new(0, 0, 0, 48)
 alignBtn.BackgroundColor3 = LIGHT_BLUE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = WHITE
@@ -563,12 +575,12 @@ alignBtn.MouseButton1Click:Connect(function()
     saveSettings()
 end)
 
--- Bar (blue)
+-- Bar (blue, under ALIGN button)
 local barContainer = Instance.new("Frame")
-barContainer.Size = UDim2.new(1, -20, 0, 14)
-barContainer.Position = UDim2.new(0, 10, 0, 87)
+barContainer.Size = UDim2.new(1, 0, 0, 14)
+barContainer.Position = UDim2.new(0, 0, 0, 71)
 barContainer.BackgroundTransparency = 1
-barContainer.Parent = main
+barContainer.Parent = buttonsContainer
 
 local barFrame = Instance.new("Frame")
 barFrame.Size = UDim2.new(1, 0, 0, 6)
