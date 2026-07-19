@@ -378,7 +378,7 @@ settingsBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Slider Function
-local function createSlider(parent, yPos, label, min, max, value, onChange)
+local function createSlider(parent, yPos, label, min, max, value, onChange, valueY)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, 0, 0, 28)
     container.Position = UDim2.new(0, 0, 0, yPos)
@@ -398,7 +398,7 @@ local function createSlider(parent, yPos, label, min, max, value, onChange)
 
     local valueText = Instance.new("TextLabel")
     valueText.Size = UDim2.new(1, 0, 0, 12)
-    valueText.Position = UDim2.new(0, 0, 0, 10)
+    valueText.Position = UDim2.new(0, 0, 0, valueY or 11)
     valueText.BackgroundTransparency = 1
     valueText.Text = tostring(math.floor(value))
     valueText.TextColor3 = LIGHT_BLUE
@@ -633,7 +633,7 @@ end)
 createSlider(settingsScroll, 95, "LAG AMOUNT", 0, 100, laggerPower, function(v)
     laggerPower = v
     saveSettings()
-end)
+end, 12)
 
 createSlider(settingsScroll, 131, "SPEED", 16, 60, speedBoostMax, function(v)
     speedBoostMax = v
