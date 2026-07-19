@@ -287,8 +287,8 @@ local function createAnimatedStroke(parent, thickness, speed)
 end
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 160, 0, 180)
-main.Position = UDim2.new(0.5, -80, 0.5, -90)
+main.Size = UDim2.new(0, 160, 0, 190)
+main.Position = UDim2.new(0.5, -80, 0.5, -95)
 main.BackgroundColor3 = DARK_BLUE
 main.BackgroundTransparency = 0.25
 main.ClipsDescendants = true
@@ -356,15 +356,15 @@ createAnimatedStroke(settingsBtn, 1, 1.5)
 
 -- Buttons Container
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -20, 0, 85)
-buttonsContainer.Position = UDim2.new(0, 10, 0, 50)
+buttonsContainer.Size = UDim2.new(1, -20, 0, 100)
+buttonsContainer.Position = UDim2.new(0, 10, 0, 55)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = main
 
 -- Settings Scroll Frame
 local settingsScroll = Instance.new("ScrollingFrame")
 settingsScroll.Size = UDim2.new(1, -20, 0, 110)
-settingsScroll.Position = UDim2.new(0, 10, 0, 50)
+settingsScroll.Position = UDim2.new(0, 10, 0, 55)
 settingsScroll.BackgroundTransparency = 1
 settingsScroll.ScrollBarThickness = 4
 settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 220)
@@ -554,12 +554,12 @@ end
 
 -- Main Buttons
 createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
-createMainToggle("GIANT POTION", 24, toggleStates["Giant Potion"])
+createMainToggle("GIANT POTION", 28, toggleStates["Giant Potion"])
 
 -- ALIGN Button (always blue)
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 48)
+alignBtn.Position = UDim2.new(0, 0, 0, 56)
 alignBtn.BackgroundColor3 = LIGHT_BLUE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = WHITE
@@ -578,7 +578,7 @@ end)
 -- Bar (blue, under ALIGN button)
 local barContainer = Instance.new("Frame")
 barContainer.Size = UDim2.new(1, 0, 0, 14)
-barContainer.Position = UDim2.new(0, 0, 0, 71)
+barContainer.Position = UDim2.new(0, 0, 0, 83)
 barContainer.BackgroundTransparency = 1
 barContainer.Parent = buttonsContainer
 
