@@ -18,7 +18,7 @@ end)
 -- Config
 local sliderValue = 0.915
 local laggerPower = 50
-local speedBoostMax = 27.5
+local speedBoostMax = 27
 local savePath = "MoonHub_Settings.json"
 local toggleStates = {}
 local activeTriggers = {}
@@ -53,7 +53,7 @@ local function loadSettings()
             local decoded = HttpService:JSONDecode(content)
             if decoded.sliderValue then sliderValue = math.clamp(decoded.sliderValue, 0.01, 1.00) end
             if decoded.laggerPower then laggerPower = math.clamp(decoded.laggerPower, 0, 100) end
-            if decoded.speedBoostMax then speedBoostMax = math.clamp(decoded.speedBoostMax, 16, 60) end
+            if decoded.speedBoostMax then speedBoostMax = math.clamp(decoded.speedBoostMax, 16, 27) end
             if decoded.alignKey then alignKey = Enum.KeyCode[decoded.alignKey] or Enum.KeyCode.V end
             if decoded.speedBoost ~= nil then toggleStates["Speed Boost"] = decoded.speedBoost end
             if decoded.laggerOnSteal ~= nil then toggleStates["Lagger on Steal"] = decoded.laggerOnSteal end
@@ -635,7 +635,7 @@ createSlider(settingsScroll, 95, "LAG AMOUNT", 0, 100, laggerPower, function(v)
     saveSettings()
 end, 12)
 
-createSlider(settingsScroll, 133, "SPEED", 16, 60, speedBoostMax, function(v)
+createSlider(settingsScroll, 133, "SPEED", 16, 27, speedBoostMax, function(v)
     speedBoostMax = v
     saveSettings()
     if toggleStates["Speed Boost"] then
