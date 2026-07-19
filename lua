@@ -380,7 +380,7 @@ end)
 -- Slider Function
 local function createSlider(parent, yPos, label, min, max, value, onChange, valueY)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, 0, 0, 28)
+    container.Size = UDim2.new(1, 0, 0, 30)
     container.Position = UDim2.new(0, 0, 0, yPos)
     container.BackgroundTransparency = 1
     container.Parent = parent
@@ -409,7 +409,7 @@ local function createSlider(parent, yPos, label, min, max, value, onChange, valu
 
     local track = Instance.new("Frame")
     track.Size = UDim2.new(1, 0, 0, 4)
-    track.Position = UDim2.new(0, 0, 0, 24)
+    track.Position = UDim2.new(0, 0, 0, 25)
     track.BackgroundColor3 = Color3.fromRGB(25, 30, 50)
     track.Parent = container
     Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
@@ -554,12 +554,12 @@ end
 
 -- Main Buttons
 createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
-createMainToggle("GIANT POTION", 22, toggleStates["Giant Potion"])
+createMainToggle("GIANT POTION", 24, toggleStates["Giant Potion"])
 
 -- ALIGN Button (always blue)
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 44)
+alignBtn.Position = UDim2.new(0, 0, 0, 48)
 alignBtn.BackgroundColor3 = LIGHT_BLUE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = WHITE
@@ -578,7 +578,7 @@ end)
 -- Bar (blue, under ALIGN button)
 local barContainer = Instance.new("Frame")
 barContainer.Size = UDim2.new(1, 0, 0, 14)
-barContainer.Position = UDim2.new(0, 0, 0, 67)
+barContainer.Position = UDim2.new(0, 0, 0, 71)
 barContainer.BackgroundTransparency = 1
 barContainer.Parent = buttonsContainer
 
@@ -635,7 +635,7 @@ createSlider(settingsScroll, 95, "LAG AMOUNT", 0, 100, laggerPower, function(v)
     saveSettings()
 end, 12)
 
-createSlider(settingsScroll, 131, "SPEED", 16, 60, speedBoostMax, function(v)
+createSlider(settingsScroll, 133, "SPEED", 16, 60, speedBoostMax, function(v)
     speedBoostMax = v
     saveSettings()
     if toggleStates["Speed Boost"] then
