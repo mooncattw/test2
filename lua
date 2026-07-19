@@ -46,6 +46,23 @@ local function getHRP()
     end
 end
 
+-- NEW: Auto Giant Function (from 2nd script)
+local function triggerAutoGiant()
+    task.spawn(function()
+        task.wait(0.09)
+        local char = LocalPlayer.Character
+        local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or (char and char:FindFirstChild("Giant Potion"))
+        if potion then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum:EquipTool(potion)
+                task.wait(0.05)
+                potion:Activate()
+            end
+        end
+    end)
+end
+
 local function loadSettings()
     pcall(function()
         if isfile and isfile(savePath) then
@@ -59,6 +76,7 @@ local function loadSettings()
             if decoded.laggerOnSteal ~= nil then toggleStates["Lagger on Steal"] = decoded.laggerOnSteal end
             if decoded.giantPotion ~= nil then toggleStates["Giant Potion"] = decoded.giantPotion end
             if decoded.autoPotion ~= nil then toggleStates["Auto Potion"] = decoded.autoPotion end
+            if decoded.autoGiant ~= nil then toggleStates["Auto Giant"] = decoded.autoGiant end
         end
     end)
 end
@@ -74,6 +92,7 @@ local function saveSettings()
                 laggerOnSteal = toggleStates["Lagger on Steal"] or false,
                 giantPotion = toggleStates["Giant Potion"] or false,
                 autoPotion = toggleStates["Auto Potion"] or false,
+                autoGiant = toggleStates["Auto Giant"] or false,
                 alignKey = alignKey.Name,
             }
             writefile(savePath, HttpService:JSONEncode(data))
@@ -116,6 +135,20 @@ local function disableSpeedBoost()
     end
 end
 
+local function ActivateGiantPotion()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or char:FindFirstChild("Giant Potion")
+    if potion then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:EquipTool(potion)
+            task.wait(0.05)
+            potion:Activate()
+        end
+    end
+end
+
 local function EquipCarpet()
     local char = LocalPlayer.Character
     local backpack = LocalPlayer:FindFirstChild("Backpack")
@@ -135,20 +168,6 @@ local function EquipFlash()
         local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hum then
             hum:EquipTool(flashTool)
-        end
-    end
-end
-
-local function ActivateGiantPotion()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or char:FindFirstChild("Giant Potion")
-    if potion then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:EquipTool(potion)
-            task.wait(0.05)
-            potion:Activate()
         end
     end
 end
@@ -197,7 +216,7 @@ local function ExecuteAlign()
     end
 end
 
--- Proximity Prompt Handling
+-- Proximity Prompt Handling (MODIFIED)
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if activeTriggers[prompt] then return end
     activeTriggers[prompt] = true
@@ -239,6 +258,10 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
                 tool:Activate()
                 if toggleStates["Auto Potion"] or toggleStates["Giant Potion"] then
                     task.spawn(ActivateGiantPotion)
+                end
+                -- NEW: Auto Giant trigger
+                if toggleStates["Auto Giant"] then
+                    triggerAutoGiant()
                 end
                 if toggleStates["Speed Boost"] then enableSpeedBoost() end
             end
@@ -361,7 +384,7 @@ createAnimatedStroke(settingsBtn, 1, 1.5)
 
 -- Buttons Container
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -20, 0, 100)
+buttonsContainer.Size = UDim2.new(1, -20, 0, 128)  -- INCREASED HEIGHT FOR NEW BUTTON
 buttonsContainer.Position = UDim2.new(0, 10, 0, 55)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = main
@@ -560,11 +583,12 @@ end
 -- Main Buttons
 createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
 createMainToggle("AUTO POTION", 28, toggleStates["Auto Potion"])
+createMainToggle("AUTO GIANT", 56, toggleStates["Auto Giant"]) -- NEW TOGGLE
 
--- ALIGN Button (always blue)
+-- ALIGN Button (always blue) - POSITION UPDATED
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 56)
+alignBtn.Position = UDim2.new(0, 0, 0, 84) -- CHANGED FROM 56 TO 84
 alignBtn.BackgroundColor3 = LIGHT_BLUE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = WHITE
@@ -580,10 +604,10 @@ alignBtn.MouseButton1Click:Connect(function()
     saveSettings()
 end)
 
--- Bar (blue, under ALIGN button)
+-- Bar (blue, under ALIGN button) - POSITION UPDATED
 local barContainer = Instance.new("Frame")
 barContainer.Size = UDim2.new(1, 0, 0, 14)
-barContainer.Position = UDim2.new(0, 0, 0, 83)
+barContainer.Position = UDim2.new(0, 0, 0, 111) -- CHANGED FROM 83 TO 111
 barContainer.BackgroundTransparency = 1
 barContainer.Parent = buttonsContainer
 
