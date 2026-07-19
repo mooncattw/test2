@@ -4,7 +4,6 @@ local UserInputService = game:GetService("UserInputService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
-local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
@@ -23,12 +22,10 @@ local savePath = "MoonHub_Settings.json"
 local toggleStates = {}
 local activeTriggers = {}
 local boostConn = nil
-local bindingAlign = false
 local WHITE = Color3.fromRGB(255, 255, 255)
 local LIGHT_BLUE = Color3.fromRGB(100, 180, 255)
 local DARK_BLUE = Color3.fromRGB(8, 14, 32)
 local MEDIUM_BLUE = Color3.fromRGB(15, 25, 55)
-
 local alignKey = Enum.KeyCode.V
 local bindingAlignKey = false
 local stealBarFill = nil
@@ -39,15 +36,9 @@ local function getHumanoid()
     local char = getCharacter()
     return char and char:FindFirstChildOfClass("Humanoid")
 end
-local function getHRP()
-    local char = getCharacter()
-    if char then
-        return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
-    end
-end
 
--- NEW: Auto Giant Function (from 2nd script)
-local function triggerAutoGiant()
+-- Auto Potion Function (fixed from script 2)
+local function triggerAutoPotion()
     task.spawn(function()
         task.wait(0.09)
         local char = LocalPlayer.Character
@@ -74,9 +65,7 @@ local function loadSettings()
             if decoded.alignKey then alignKey = Enum.KeyCode[decoded.alignKey] or Enum.KeyCode.V end
             if decoded.speedBoost ~= nil then toggleStates["Speed Boost"] = decoded.speedBoost end
             if decoded.laggerOnSteal ~= nil then toggleStates["Lagger on Steal"] = decoded.laggerOnSteal end
-            if decoded.giantPotion ~= nil then toggleStates["Giant Potion"] = decoded.giantPotion end
             if decoded.autoPotion ~= nil then toggleStates["Auto Potion"] = decoded.autoPotion end
-            if decoded.autoGiant ~= nil then toggleStates["Auto Giant"] = decoded.autoGiant end
         end
     end)
 end
@@ -90,9 +79,7 @@ local function saveSettings()
                 speedBoostMax = speedBoostMax,
                 speedBoost = toggleStates["Speed Boost"] or false,
                 laggerOnSteal = toggleStates["Lagger on Steal"] or false,
-                giantPotion = toggleStates["Giant Potion"] or false,
                 autoPotion = toggleStates["Auto Potion"] or false,
-                autoGiant = toggleStates["Auto Giant"] or false,
                 alignKey = alignKey.Name,
             }
             writefile(savePath, HttpService:JSONEncode(data))
@@ -135,20 +122,6 @@ local function disableSpeedBoost()
     end
 end
 
-local function ActivateGiantPotion()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or char:FindFirstChild("Giant Potion")
-    if potion then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:EquipTool(potion)
-            task.wait(0.05)
-            potion:Activate()
-        end
-    end
-end
-
 local function EquipCarpet()
     local char = LocalPlayer.Character
     local backpack = LocalPlayer:FindFirstChild("Backpack")
@@ -173,7 +146,7 @@ local function EquipFlash()
 end
 
 local function ExecuteAlign()
-    if bindingAlign then return end
+    if bindingAlignKey then return end
     EquipCarpet()
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -216,7 +189,7 @@ local function ExecuteAlign()
     end
 end
 
--- Proximity Prompt Handling (MODIFIED)
+-- Proximity Prompt Handling (FIXED)
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if activeTriggers[prompt] then return end
     activeTriggers[prompt] = true
@@ -256,12 +229,8 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
             if tool then
                 if toggleStates["Lagger on Steal"] then triggerLagger() end
                 tool:Activate()
-                if toggleStates["Auto Potion"] or toggleStates["Giant Potion"] then
-                    task.spawn(ActivateGiantPotion)
-                end
-                -- NEW: Auto Giant trigger
-                if toggleStates["Auto Giant"] then
-                    triggerAutoGiant()
+                if toggleStates["Auto Potion"] then
+                    triggerAutoPotion()
                 end
                 if toggleStates["Speed Boost"] then enableSpeedBoost() end
             end
@@ -292,7 +261,6 @@ local function createAnimatedStroke(parent, thickness, speed)
     s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     s.Color = Color3.new(1, 1, 1)
     s.Parent = parent
-
     local g = Instance.new("UIGradient")
     g.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 50, 150)),
@@ -303,7 +271,6 @@ local function createAnimatedStroke(parent, thickness, speed)
     })
     g.Rotation = 0
     g.Parent = s
-
     task.spawn(function()
         local spd = speed or 1.2
         while parent and parent.Parent do
@@ -356,7 +323,7 @@ task.spawn(function()
     end
 end)
 
--- Flash TP Text (white, under title)
+-- Flash TP Text
 local flashTpText = Instance.new("TextLabel")
 flashTpText.Size = UDim2.new(1, -20, 0, 14)
 flashTpText.Position = UDim2.new(0, 10, 0, 32)
@@ -384,7 +351,7 @@ createAnimatedStroke(settingsBtn, 1, 1.5)
 
 -- Buttons Container
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -20, 0, 128)  -- INCREASED HEIGHT FOR NEW BUTTON
+buttonsContainer.Size = UDim2.new(1, -20, 0, 100)
 buttonsContainer.Position = UDim2.new(0, 10, 0, 55)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = main
@@ -460,7 +427,6 @@ local function createSlider(parent, yPos, label, min, max, value, onChange, valu
     knobStroke.Parent = knob
 
     local dragging = false
-
     local function updateSlider(v)
         value = math.clamp(v, min, max)
         local pct = (value - min) / (max - min)
@@ -492,7 +458,6 @@ local function createSlider(parent, yPos, label, min, max, value, onChange, valu
             main.Draggable = true
         end
     end)
-
     updateSlider(value)
 end
 
@@ -529,7 +494,6 @@ local function makeSettingsToggle(labelText, yPos, defaultState, onToggle)
             btn.TextColor3 = Color3.new(0, 0, 0)
         end
     end
-
     updateToggleVisual()
 
     btn.MouseButton1Click:Connect(function()
@@ -568,7 +532,6 @@ local function createMainToggle(name, yPos, defaultState, onToggle)
             btn.TextColor3 = Color3.new(0, 0, 0)
         end
     end
-
     updateColor()
 
     btn.MouseButton1Click:Connect(function()
@@ -583,12 +546,11 @@ end
 -- Main Buttons
 createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
 createMainToggle("AUTO POTION", 28, toggleStates["Auto Potion"])
-createMainToggle("AUTO GIANT", 56, toggleStates["Auto Giant"]) -- NEW TOGGLE
 
--- ALIGN Button (always blue) - POSITION UPDATED
+-- ALIGN Button
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 84) -- CHANGED FROM 56 TO 84
+alignBtn.Position = UDim2.new(0, 0, 0, 56)
 alignBtn.BackgroundColor3 = LIGHT_BLUE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = WHITE
@@ -604,10 +566,10 @@ alignBtn.MouseButton1Click:Connect(function()
     saveSettings()
 end)
 
--- Bar (blue, under ALIGN button) - POSITION UPDATED
+-- Bar
 local barContainer = Instance.new("Frame")
 barContainer.Size = UDim2.new(1, 0, 0, 14)
-barContainer.Position = UDim2.new(0, 0, 0, 111) -- CHANGED FROM 83 TO 111
+barContainer.Position = UDim2.new(0, 0, 0, 83)
 barContainer.BackgroundTransparency = 1
 barContainer.Parent = buttonsContainer
 
