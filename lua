@@ -168,7 +168,7 @@ local function ExecuteAlign()
     end
 end
 
--- Proximity Prompt Handling (FIXED AUTO POTION FROM SCRIPT 2)
+-- PROXIMITY PROMPT HANDLING - TAMAMEN 2. SCRIPTTEN ALINDI (AUTO POTION FIXED)
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if activeTriggers[prompt] then return end
     activeTriggers[prompt] = true
@@ -208,7 +208,7 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
             if tool then
                 if toggleStates["Lagger on Steal"] then triggerLagger() end
                 tool:Activate()
-                -- FIXED AUTO POTION FROM SCRIPT 2
+                -- TAM AYNI 2. SCRIPTTEN ALINDI
                 if toggleStates["Auto Potion"] then
                     task.spawn(function()
                         task.wait(0.09)
