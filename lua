@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local StatsService = game:GetService("Stats")
 local UserInputService = game:GetService("UserInputService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local HttpService = game:GetService("HttpService")
@@ -252,7 +251,7 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     end)
 end)
 
--- GUI Creation (Moon Hub Style)
+-- GUI Creation
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "MoonHub"
 ScreenGui.ResetOnSpawn = false
@@ -287,8 +286,8 @@ local function createAnimatedStroke(parent, thickness, speed)
 end
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 200, 0, 200)
-main.Position = UDim2.new(0.5, -100, 0.5, -100)
+main.Size = UDim2.new(0, 200, 0, 220)
+main.Position = UDim2.new(0.5, -100, 0.5, -110)
 main.BackgroundColor3 = DARK_BLUE
 main.BackgroundTransparency = 0.25
 main.ClipsDescendants = true
@@ -344,7 +343,7 @@ createAnimatedStroke(settingsBtn, 1, 1.5)
 
 -- Buttons Container
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, 0, 0, 120)
+buttonsContainer.Size = UDim2.new(1, 0, 0, 100)
 buttonsContainer.Position = UDim2.new(0, 0, 0, 35)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = main
@@ -366,7 +365,7 @@ settingsScroll.Position = UDim2.new(0, 0, 0, 0)
 settingsScroll.BackgroundTransparency = 1
 settingsScroll.ScrollBarThickness = 4
 settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 220)
-settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 180)
+settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 200)
 settingsScroll.Parent = settingsFrame
 
 settingsBtn.MouseButton1Click:Connect(function()
@@ -465,6 +464,73 @@ local function createSlider(parent, yPos, label, min, max, value, onChange)
     updateSlider(value)
 end
 
+-- Toggle Function for Settings
+local function makeSettingsToggle(labelText, yPos, defaultState, onToggle)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0.85, 0, 0, 22)
+    container.Position = UDim2.new(0.075, 0, 0, yPos)
+    container.BackgroundTransparency = 1
+    container.Parent = settingsScroll
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.4, 0, 1, 0)
+    lbl.Position = UDim2.new(0, 0, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = labelText
+    lbl.TextColor3 = WHITE
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 9
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = container
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 36, 0, 18)
+    btn.Position = UDim2.new(1, -40, 0.5, -9)
+    btn.BackgroundColor3 = WHITE
+    btn.Text = ""
+    btn.AutoButtonColor = false
+    btn.Parent = container
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local toggleStroke = Instance.new("UIStroke")
+    toggleStroke.Thickness = 1.2
+    toggleStroke.Color = LIGHT_BLUE
+    toggleStroke.Transparency = 0.5
+    toggleStroke.Parent = btn
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 12, 0, 12)
+    knob.Position = UDim2.new(0, 2, 0.5, -6)
+    knob.BackgroundColor3 = Color3.new(0, 0, 0)
+    knob.Parent = btn
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local state = defaultState or false
+    toggleStates[labelText] = state
+
+    local function updateToggleVisual()
+        if state then
+            btn.BackgroundColor3 = LIGHT_BLUE
+            knob.Position = UDim2.new(1, -14, 0.5, -6)
+            toggleStroke.Transparency = 0
+        else
+            btn.BackgroundColor3 = WHITE
+            knob.Position = UDim2.new(0, 2, 0.5, -6)
+            toggleStroke.Transparency = 0.5
+        end
+    end
+
+    updateToggleVisual()
+
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        toggleStates[labelText] = state
+        updateToggleVisual()
+        if onToggle then onToggle(state) end
+        saveSettings()
+    end)
+end
+
 -- Main Toggle Buttons (renk değiştirmeyen - açık mavi/beyaz)
 local function createMainToggle(name, yPos, defaultState, onToggle)
     local btn = Instance.new("TextButton")
@@ -480,6 +546,7 @@ local function createMainToggle(name, yPos, defaultState, onToggle)
     createAnimatedStroke(btn, 1, 1.5)
 
     local state = defaultState or false
+    toggleStates[name] = state
 
     local function updateColor()
         if state then
@@ -502,18 +569,15 @@ local function createMainToggle(name, yPos, defaultState, onToggle)
     end)
 end
 
--- Main Buttons
+-- Main Buttons (FLASH TP, GIANT POTION, ALIGN)
 createMainToggle("FLASH TP", 5, toggleStates["FLASH TP"])
-createMainToggle("SPEED BOOST", 38, toggleStates["Speed Boost"], function(state)
-    if state then enableSpeedBoost() else disableSpeedBoost() end
-end)
-createMainToggle("LAG", 71, toggleStates["Lagger on Steal"])
-createMainToggle("GIANT POTION", 104, toggleStates["Giant Potion"])
+createMainToggle("GIANT POTION", 38, toggleStates["Giant Potion"])
+createMainToggle("ALIGN", 71)
 
--- ALIGN Button
+-- ALIGN Button (separate for keybind)
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(0.85, 0, 0, 28)
-alignBtn.Position = UDim2.new(0.075, 0, 0, 137)
+alignBtn.Position = UDim2.new(0.075, 0, 0, 71)
 alignBtn.BackgroundColor3 = WHITE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = Color3.new(0, 0, 0)
@@ -522,12 +586,28 @@ alignBtn.TextSize = 11
 alignBtn.Parent = buttonsContainer
 Instance.new("UICorner", alignBtn).CornerRadius = UDim.new(0, 6)
 createAnimatedStroke(alignBtn, 1, 1.5)
-alignBtn.MouseButton1Click:Connect(ExecuteAlign)
 
--- Bar (GUI içinde, ALIGN altında, discord üstünde)
+local function updateAlignColor()
+    if toggleStates["ALIGN"] then
+        alignBtn.BackgroundColor3 = LIGHT_BLUE
+        alignBtn.TextColor3 = WHITE
+    else
+        alignBtn.BackgroundColor3 = WHITE
+        alignBtn.TextColor3 = Color3.new(0, 0, 0)
+    end
+end
+
+alignBtn.MouseButton1Click:Connect(function()
+    toggleStates["ALIGN"] = not toggleStates["ALIGN"]
+    updateAlignColor()
+    ExecuteAlign()
+    saveSettings()
+end)
+
+-- Bar (sadece normal GUI'da, ALIGN altında)
 local barContainer = Instance.new("Frame")
 barContainer.Size = UDim2.new(1, -20, 0, 20)
-barContainer.Position = UDim2.new(0, 10, 1, -45)
+barContainer.Position = UDim2.new(0, 10, 0, 105)
 barContainer.BackgroundTransparency = 1
 barContainer.Parent = main
 
@@ -565,7 +645,7 @@ Instance.new("UICorner", stealBarFill).CornerRadius = UDim.new(1, 0)
 -- Discord Label
 local discordLabel = Instance.new("TextLabel")
 discordLabel.Size = UDim2.new(1, 0, 0, 14)
-discordLabel.Position = UDim2.new(0, 0, 1, -25)
+discordLabel.Position = UDim2.new(0, 0, 1, -16)
 discordLabel.BackgroundTransparency = 1
 discordLabel.Text = "discord.gg/moonhub"
 discordLabel.TextColor3 = WHITE
@@ -574,18 +654,24 @@ discordLabel.TextSize = 10
 discordLabel.TextXAlignment = Enum.TextXAlignment.Center
 discordLabel.Parent = main
 
+-- Settings Toggles (LAG, SPEED BOOST)
+makeSettingsToggle("LAG", 10, toggleStates["Lagger on Steal"])
+makeSettingsToggle("SPEED BOOST", 40, toggleStates["Speed Boost"], function(state)
+    if state then enableSpeedBoost() else disableSpeedBoost() end
+end)
+
 -- Settings Sliders (sadece 3 bar)
-createSlider(settingsScroll, 10, "TRIGGER START %", 1, 100, sliderValue * 100, function(v)
+createSlider(settingsScroll, 70, "TRIGGER START %", 1, 100, sliderValue * 100, function(v)
     sliderValue = v / 100
     saveSettings()
 end)
 
-createSlider(settingsScroll, 50, "LAG AMOUNT", 0, 100, laggerPower, function(v)
+createSlider(settingsScroll, 110, "LAG AMOUNT", 0, 100, laggerPower, function(v)
     laggerPower = v
     saveSettings()
 end)
 
-createSlider(settingsScroll, 90, "SPEED", 16, 60, speedBoostMax, function(v)
+createSlider(settingsScroll, 150, "SPEED", 16, 60, speedBoostMax, function(v)
     speedBoostMax = v
     saveSettings()
     if toggleStates["Speed Boost"] then
@@ -597,7 +683,7 @@ end)
 -- Align Keybind Setting
 local alignKeyContainer = Instance.new("Frame")
 alignKeyContainer.Size = UDim2.new(0.85, 0, 0, 22)
-alignKeyContainer.Position = UDim2.new(0.075, 0, 0, 140)
+alignKeyContainer.Position = UDim2.new(0.075, 0, 0, 190)
 alignKeyContainer.BackgroundTransparency = 1
 alignKeyContainer.Parent = settingsScroll
 
