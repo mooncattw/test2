@@ -547,7 +547,7 @@ local function createUI()
     awLabel.Size = UDim2.new(0, 80, 1, 0)
     awLabel.Position = UDim2.new(0, 10, 0, 0)
     awLabel.BackgroundTransparency = 1
-    awLabel.Text = "Auto-Write"
+    awLabel.Text = "Auto Write"
     awLabel.Font = Enum.Font.GothamBlack
     awLabel.TextSize = 13
     awLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -595,7 +595,7 @@ local function createUI()
     asLabel.Size = UDim2.new(0, 80, 1, 0)
     asLabel.Position = UDim2.new(0, 10, 0, 0)
     asLabel.BackgroundTransparency = 1
-    asLabel.Text = "Auto-Submit"
+    asLabel.Text = "Auto Submit"
     asLabel.Font = Enum.Font.GothamBlack
     asLabel.TextSize = 13
     asLabel.TextColor3 = Color3.new(1, 1, 1)
