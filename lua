@@ -26,13 +26,12 @@ local activeTriggers = {}
 local boostConn = nil
 local bindingAlign = false
 local WHITE = Color3.fromRGB(255, 255, 255)
-local BLUE = Color3.fromRGB(40, 100, 220)
+local LIGHT_BLUE = Color3.fromRGB(100, 180, 255)
 local DARK_BLUE = Color3.fromRGB(8, 14, 32)
 local MEDIUM_BLUE = Color3.fromRGB(15, 25, 55)
-local GREEN = Color3.fromRGB(0, 200, 83)
-local RED = Color3.fromRGB(255, 60, 60)
 local alignKey = Enum.KeyCode.V
 local bindingAlignKey = false
+local stealBarFill = nil
 
 -- Helper functions
 local function getCharacter() return LocalPlayer.Character end
@@ -274,8 +273,8 @@ local function createAnimatedStroke(parent, thickness, speed)
 end
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 220, 0, 220)
-main.Position = UDim2.new(0.5, -110, 0.5, -110)
+main.Size = UDim2.new(0, 200, 0, 180)
+main.Position = UDim2.new(0.5, -100, 0.5, -90)
 main.BackgroundColor3 = DARK_BLUE
 main.BackgroundTransparency = 0.25
 main.ClipsDescendants = true
@@ -299,7 +298,7 @@ Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10, 0, 0, 0, 0)
 
 -- Title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(0.5, 0, 1, 0)
+title.Size = UDim2.new(0.6, 0, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "Moon Hub Flash TP"
@@ -308,18 +307,6 @@ title.TextSize = 14
 title.TextColor3 = WHITE
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = titleBar
-
--- Stats (FPS | Ping)
-local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(0.45, 0, 1, 0)
-statsLabel.Position = UDim2.new(0.55, 0, 0, 0)
-statsLabel.BackgroundTransparency = 1
-statsLabel.Text = "FPS: 60 | Ping: 0ms"
-statsLabel.Font = Enum.Font.Gotham
-statsLabel.TextSize = 11
-statsLabel.TextColor3 = WHITE
-statsLabel.TextXAlignment = Enum.TextXAlignment.Right
-statsLabel.Parent = titleBar
 
 -- Settings Button
 local settingsBtn = Instance.new("TextButton")
@@ -335,9 +322,16 @@ settingsBtn.Parent = titleBar
 Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0, 6)
 createAnimatedStroke(settingsBtn, 1, 1.5)
 
+-- Buttons Container
+local buttonsContainer = Instance.new("Frame")
+buttonsContainer.Size = UDim2.new(1, 0, 0, 100)
+buttonsContainer.Position = UDim2.new(0, 0, 0, 35)
+buttonsContainer.BackgroundTransparency = 1
+buttonsContainer.Parent = main
+
 -- Settings Frame
 local settingsFrame = Instance.new("Frame")
-settingsFrame.Size = UDim2.new(1, -20, 1, -50)
+settingsFrame.Size = UDim2.new(1, -20, 0, 100)
 settingsFrame.Position = UDim2.new(0, 10, 0, 35)
 settingsFrame.BackgroundColor3 = MEDIUM_BLUE
 settingsFrame.BackgroundTransparency = 0.2
@@ -352,11 +346,12 @@ settingsScroll.Position = UDim2.new(0, 0, 0, 0)
 settingsScroll.BackgroundTransparency = 1
 settingsScroll.ScrollBarThickness = 4
 settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 220)
-settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 180)
+settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 150)
 settingsScroll.Parent = settingsFrame
 
 settingsBtn.MouseButton1Click:Connect(function()
     settingsFrame.Visible = not settingsFrame.Visible
+    buttonsContainer.Visible = not settingsFrame.Visible
 end)
 
 -- Slider Function
@@ -383,7 +378,7 @@ local function createSlider(parent, yPos, label, min, max, value, onChange)
     valueText.Position = UDim2.new(0, 0, 0, 12)
     valueText.BackgroundTransparency = 1
     valueText.Text = tostring(math.floor(value))
-    valueText.TextColor3 = BLUE
+    valueText.TextColor3 = LIGHT_BLUE
     valueText.Font = Enum.Font.GothamBold
     valueText.TextSize = 8
     valueText.TextXAlignment = Enum.TextXAlignment.Center
@@ -398,7 +393,7 @@ local function createSlider(parent, yPos, label, min, max, value, onChange)
 
     local fill = Instance.new("Frame")
     fill.Size = UDim2.new(0, 0, 1, 0)
-    fill.BackgroundColor3 = BLUE
+    fill.BackgroundColor3 = LIGHT_BLUE
     fill.Parent = track
     Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
 
@@ -409,7 +404,7 @@ local function createSlider(parent, yPos, label, min, max, value, onChange)
     knob.Parent = track
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
     local knobStroke = Instance.new("UIStroke")
-    knobStroke.Color = BLUE
+    knobStroke.Color = LIGHT_BLUE
     knobStroke.Thickness = 1
     knobStroke.Parent = knob
 
@@ -453,25 +448,31 @@ end
 -- Main Toggle Buttons
 local function createMainToggle(name, yPos, defaultState, onToggle)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.85, 0, 0, 35)
+    btn.Size = UDim2.new(0.85, 0, 0, 28)
     btn.Position = UDim2.new(0.075, 0, 0, yPos)
-    btn.BackgroundColor3 = GREEN
+    btn.BackgroundColor3 = WHITE
     btn.Text = name:upper()
-    btn.TextColor3 = WHITE
+    btn.TextColor3 = Color3.new(0, 0, 0)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 12
-    btn.Parent = main
+    btn.TextSize = 11
+    btn.Parent = buttonsContainer
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     createAnimatedStroke(btn, 1, 1.5)
 
     local state = defaultState or false
+    if state then
+        btn.BackgroundColor3 = LIGHT_BLUE
+        btn.TextColor3 = WHITE
+    end
 
     btn.MouseButton1Click:Connect(function()
         state = not state
         if state then
-            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = RED}):Play()
+            btn.BackgroundColor3 = LIGHT_BLUE
+            btn.TextColor3 = WHITE
         else
-            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = GREEN}):Play()
+            btn.BackgroundColor3 = WHITE
+            btn.TextColor3 = Color3.new(0, 0, 0)
         end
         if onToggle then onToggle(state) end
         saveSettings()
@@ -479,36 +480,74 @@ local function createMainToggle(name, yPos, defaultState, onToggle)
 end
 
 -- Main Buttons
-createMainToggle("FLASH TP", 45, toggleStates["Flash TP"], function(state)
+createMainToggle("FLASH TP", 5, toggleStates["Flash TP"], function(state)
     toggleStates["Flash TP"] = state
 end)
 
-createMainToggle("SPEED BOOST", 85, toggleStates["Speed Boost"], function(state)
+createMainToggle("SPEED BOOST", 38, toggleStates["Speed Boost"], function(state)
     toggleStates["Speed Boost"] = state
     if state then enableSpeedBoost() else disableSpeedBoost() end
 end)
 
-createMainToggle("LAG", 125, toggleStates["Lagger on Steal"], function(state)
+createMainToggle("LAG", 71, toggleStates["Lagger on Steal"], function(state)
     toggleStates["Lagger on Steal"] = state
 end)
 
 local alignBtn = Instance.new("TextButton")
-alignBtn.Size = UDim2.new(0.85, 0, 0, 35)
-alignBtn.Position = UDim2.new(0.075, 0, 0, 165)
-alignBtn.BackgroundColor3 = GREEN
+alignBtn.Size = UDim2.new(0.85, 0, 0, 28)
+alignBtn.Position = UDim2.new(0.075, 0, 0, 104)
+alignBtn.BackgroundColor3 = WHITE
 alignBtn.Text = "ALIGN"
-alignBtn.TextColor3 = WHITE
+alignBtn.TextColor3 = Color3.new(0, 0, 0)
 alignBtn.Font = Enum.Font.GothamBold
-alignBtn.TextSize = 12
-alignBtn.Parent = main
+alignBtn.TextSize = 11
+alignBtn.Parent = buttonsContainer
 Instance.new("UICorner", alignBtn).CornerRadius = UDim.new(0, 6)
 createAnimatedStroke(alignBtn, 1, 1.5)
 alignBtn.MouseButton1Click:Connect(ExecuteAlign)
 
+-- Bar Frame (GUI içinde, discord üstünde)
+local barContainer = Instance.new("Frame")
+barContainer.Size = UDim2.new(1, -20, 0, 20)
+barContainer.Position = UDim2.new(0, 10, 1, -45)
+barContainer.BackgroundTransparency = 1
+barContainer.Parent = main
+
+local barFrame = Instance.new("Frame")
+barFrame.Size = UDim2.new(1, 0, 0, 8)
+barFrame.Position = UDim2.new(0, 0, 0, 0)
+barFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+barFrame.BackgroundTransparency = 0.25
+barFrame.BorderSizePixel = 0
+barFrame.Parent = barContainer
+Instance.new("UICorner", barFrame).CornerRadius = UDim.new(0, 8)
+createAnimatedStroke(barFrame, 1.5, 0.8)
+
+local barTrack = Instance.new("Frame")
+barTrack.Size = UDim2.new(0.85, 0, 0, 6)
+barTrack.Position = UDim2.new(0.075, 0, 0, 1)
+barTrack.BackgroundColor3 = Color3.fromRGB(20, 25, 45)
+barTrack.BorderSizePixel = 0
+barTrack.Parent = barFrame
+Instance.new("UICorner", barTrack).CornerRadius = UDim.new(1, 0)
+
+local barInner = Instance.new("Frame", barTrack)
+barInner.Size = UDim2.new(1, -2, 1, -2)
+barInner.Position = UDim2.new(0, 1, 0, 1)
+barInner.BackgroundColor3 = Color3.fromRGB(15, 18, 35)
+barInner.BorderSizePixel = 0
+Instance.new("UICorner", barInner).CornerRadius = UDim.new(1, 0)
+
+stealBarFill = Instance.new("Frame", barInner)
+stealBarFill.Size = UDim2.new(0, 0, 1, 0)
+stealBarFill.BackgroundColor3 = WHITE
+stealBarFill.BorderSizePixel = 0
+Instance.new("UICorner", stealBarFill).CornerRadius = UDim.new(1, 0)
+
 -- Discord Label
 local discordLabel = Instance.new("TextLabel")
 discordLabel.Size = UDim2.new(1, 0, 0, 14)
-discordLabel.Position = UDim2.new(0, 0, 1, -16)
+discordLabel.Position = UDim2.new(0, 0, 1, -25)
 discordLabel.BackgroundTransparency = 1
 discordLabel.Text = "discord.gg/moonhub"
 discordLabel.TextColor3 = WHITE
@@ -517,18 +556,13 @@ discordLabel.TextSize = 10
 discordLabel.TextXAlignment = Enum.TextXAlignment.Center
 discordLabel.Parent = main
 
--- Settings Sliders (sadece 3 bar)
-createSlider(settingsScroll, 10, "TRIGGER START %", 1, 100, sliderValue * 100, function(v)
-    sliderValue = v / 100
-    saveSettings()
-end)
-
-createSlider(settingsScroll, 50, "LAG AMOUNT", 0, 100, laggerPower, function(v)
+-- Settings Sliders (sadece 2 bar)
+createSlider(settingsScroll, 10, "LAG AMOUNT", 0, 100, laggerPower, function(v)
     laggerPower = v
     saveSettings()
 end)
 
-createSlider(settingsScroll, 90, "SPEED", 16, 60, speedBoostMax, function(v)
+createSlider(settingsScroll, 50, "SPEED", 16, 60, speedBoostMax, function(v)
     speedBoostMax = v
     saveSettings()
     if toggleStates["Speed Boost"] then
@@ -540,7 +574,7 @@ end)
 -- Align Keybind Setting
 local alignKeyContainer = Instance.new("Frame")
 alignKeyContainer.Size = UDim2.new(0.85, 0, 0, 22)
-alignKeyContainer.Position = UDim2.new(0.075, 0, 0, 140)
+alignKeyContainer.Position = UDim2.new(0.075, 0, 0, 100)
 alignKeyContainer.BackgroundTransparency = 1
 alignKeyContainer.Parent = settingsScroll
 
@@ -571,50 +605,6 @@ createAnimatedStroke(alignKeyBtn, 1, 1.5)
 alignKeyBtn.MouseButton1Click:Connect(function()
     bindingAlignKey = true
     alignKeyBtn.Text = "[...]"
-end)
-
--- Bar Frame (sadece bar, yazı yok)
-local BarFrame = Instance.new("Frame")
-BarFrame.Size = UDim2.new(0, 160, 0, 8)
-BarFrame.Position = UDim2.new(0.5, -80, 0, main.Position.Y.Offset + main.Size.Y.Offset + 10)
-BarFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BarFrame.BackgroundTransparency = 0.25
-BarFrame.BorderSizePixel = 0
-BarFrame.Parent = ScreenGui
-Instance.new("UICorner", BarFrame).CornerRadius = UDim.new(0, 8)
-
-local barTrack = Instance.new("Frame")
-barTrack.Size = UDim2.new(0.85, 0, 0, 6)
-barTrack.Position = UDim2.new(0.075, 0, 0, 1)
-barTrack.BackgroundColor3 = Color3.fromRGB(20, 25, 45)
-barTrack.BorderSizePixel = 0
-barTrack.Parent = BarFrame
-Instance.new("UICorner", barTrack).CornerRadius = UDim.new(1, 0)
-
-local barInner = Instance.new("Frame", barTrack)
-barInner.Size = UDim2.new(1, -2, 1, -2)
-barInner.Position = UDim2.new(0, 1, 0, 1)
-barInner.BackgroundColor3 = Color3.fromRGB(15, 18, 35)
-barInner.BorderSizePixel = 0
-Instance.new("UICorner", barInner).CornerRadius = UDim.new(1, 0)
-
-stealBarFill = Instance.new("Frame", barInner)
-stealBarFill.Size = UDim2.new(0, 0, 1, 0)
-stealBarFill.BackgroundColor3 = WHITE
-stealBarFill.BorderSizePixel = 0
-Instance.new("UICorner", stealBarFill).CornerRadius = UDim.new(1, 0)
-
--- Update Stats
-RunService.Heartbeat:Connect(function()
-    local success, pingValue = pcall(function()
-        return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
-    end)
-    local ping = success and math.floor(pingValue) or 0
-    local fps = 60
-    pcall(function()
-        fps = math.floor(1 / RunService.RenderStepped:Wait())
-    end)
-    statsLabel.Text = "FPS: " .. fps .. " | Ping: " .. ping .. "ms"
 end)
 
 -- Keybind Handling
