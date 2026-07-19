@@ -356,7 +356,7 @@ createAnimatedStroke(settingsBtn, 1, 1.5)
 
 -- Buttons Container
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -20, 0, 70)
+buttonsContainer.Size = UDim2.new(1, -20, 0, 85)
 buttonsContainer.Position = UDim2.new(0, 10, 0, 50)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = main
@@ -368,7 +368,7 @@ settingsScroll.Position = UDim2.new(0, 10, 0, 50)
 settingsScroll.BackgroundTransparency = 1
 settingsScroll.ScrollBarThickness = 4
 settingsScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 220)
-settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 220)
+settingsScroll.CanvasSize = UDim2.new(0, 0, 0, 200)
 settingsScroll.Parent = main
 settingsScroll.Visible = false
 
@@ -398,7 +398,7 @@ local function createSlider(parent, yPos, label, min, max, value, onChange)
 
     local valueText = Instance.new("TextLabel")
     valueText.Size = UDim2.new(1, 0, 0, 12)
-    valueText.Position = UDim2.new(0, 0, 0, 12)
+    valueText.Position = UDim2.new(0, 0, 0, 10)
     valueText.BackgroundTransparency = 1
     valueText.Text = tostring(math.floor(value))
     valueText.TextColor3 = LIGHT_BLUE
@@ -554,12 +554,12 @@ end
 
 -- Main Buttons
 createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
-createMainToggle("GIANT POTION", 24, toggleStates["Giant Potion"])
+createMainToggle("GIANT POTION", 22, toggleStates["Giant Potion"])
 
 -- ALIGN Button (always blue)
 local alignBtn = Instance.new("TextButton")
 alignBtn.Size = UDim2.new(1, 0, 0, 22)
-alignBtn.Position = UDim2.new(0, 0, 0, 48)
+alignBtn.Position = UDim2.new(0, 0, 0, 44)
 alignBtn.BackgroundColor3 = LIGHT_BLUE
 alignBtn.Text = "ALIGN"
 alignBtn.TextColor3 = WHITE
@@ -578,7 +578,7 @@ end)
 -- Bar (blue, under ALIGN button)
 local barContainer = Instance.new("Frame")
 barContainer.Size = UDim2.new(1, 0, 0, 14)
-barContainer.Position = UDim2.new(0, 0, 0, 71)
+barContainer.Position = UDim2.new(0, 0, 0, 67)
 barContainer.BackgroundTransparency = 1
 barContainer.Parent = buttonsContainer
 
@@ -644,56 +644,9 @@ createSlider(settingsScroll, 131, "SPEED", 16, 60, speedBoostMax, function(v)
     end
 end)
 
--- Align Keybind Setting
-local alignKeyContainer = Instance.new("Frame")
-alignKeyContainer.Size = UDim2.new(1, 0, 0, 22)
-alignKeyContainer.Position = UDim2.new(0, 0, 0, 167)
-alignKeyContainer.BackgroundTransparency = 1
-alignKeyContainer.Parent = settingsScroll
-
-local alignKeyLabel = Instance.new("TextLabel")
-alignKeyLabel.Size = UDim2.new(0.6, 0, 1, 0)
-alignKeyLabel.Position = UDim2.new(0, 0, 0, 0)
-alignKeyLabel.BackgroundTransparency = 1
-alignKeyLabel.Text = "ALIGN KEY"
-alignKeyLabel.TextColor3 = WHITE
-alignKeyLabel.Font = Enum.Font.GothamBold
-alignKeyLabel.TextSize = 9
-alignKeyLabel.TextXAlignment = Enum.TextXAlignment.Left
-alignKeyLabel.Parent = alignKeyContainer
-
-local alignKeyBtn = Instance.new("TextButton")
-alignKeyBtn.Size = UDim2.new(0.35, 0, 1, 0)
-alignKeyBtn.Position = UDim2.new(0.65, 0, 0, 0)
-alignKeyBtn.BackgroundColor3 = MEDIUM_BLUE
-alignKeyBtn.BackgroundTransparency = 0.3
-alignKeyBtn.Text = "[" .. alignKey.Name .. "]"
-alignKeyBtn.TextColor3 = WHITE
-alignKeyBtn.Font = Enum.Font.GothamBold
-alignKeyBtn.TextSize = 8
-alignKeyBtn.Parent = alignKeyContainer
-Instance.new("UICorner", alignKeyBtn).CornerRadius = UDim.new(0, 4)
-createAnimatedStroke(alignKeyBtn, 1, 1.5)
-
-alignKeyBtn.MouseButton1Click:Connect(function()
-    bindingAlignKey = true
-    alignKeyBtn.Text = "[...]"
-end)
-
 -- Keybind Handling
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-
-    if bindingAlignKey then
-        if input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode ~= Enum.KeyCode.MouseButton1 then
-            alignKey = input.KeyCode
-            bindingAlignKey = false
-            alignKeyBtn.Text = "[" .. alignKey.Name .. "]"
-            saveSettings()
-        end
-        return
-    end
-
     if input.KeyCode == alignKey then
         ExecuteAlign()
     end
