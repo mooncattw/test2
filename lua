@@ -55,10 +55,10 @@ local function loadSettings()
             if decoded.laggerPower then laggerPower = math.clamp(decoded.laggerPower, 0, 100) end
             if decoded.speedBoostMax then speedBoostMax = math.clamp(decoded.speedBoostMax, 16, 27) end
             if decoded.alignKey then alignKey = Enum.KeyCode[decoded.alignKey] or Enum.KeyCode.V end
-            if decoded.speedBoost ~= nil then toggleStates["SPEED BOOST"] = decoded.speedBoost end
-            if decoded.laggerOnSteal ~= nil then toggleStates["LAGGER ON STEAL"] = decoded.laggerOnSteal end
-            if decoded.giantPotion ~= nil then toggleStates["GIANT POTION"] = decoded.giantPotion end
-            if decoded.flashTp ~= nil then toggleStates["FLASH TP"] = decoded.flashTp end
+            if decoded.speedBoost ~= nil then toggleStates["Speed Boost"] = decoded.speedBoost end
+            if decoded.laggerOnSteal ~= nil then toggleStates["Lagger on Steal"] = decoded.laggerOnSteal end
+            if decoded.giantPotion ~= nil then toggleStates["Giant Potion"] = decoded.giantPotion end
+            if decoded.autoPotion ~= nil then toggleStates["Auto Potion"] = decoded.autoPotion end
         end
     end)
 end
@@ -70,10 +70,10 @@ local function saveSettings()
                 sliderValue = sliderValue,
                 laggerPower = laggerPower,
                 speedBoostMax = speedBoostMax,
-                speedBoost = toggleStates["SPEED BOOST"] or false,
-                laggerOnSteal = toggleStates["LAGGER ON STEAL"] or false,
-                giantPotion = toggleStates["GIANT POTION"] or false,
-                flashTp = toggleStates["FLASH TP"] or false,
+                speedBoost = toggleStates["Speed Boost"] or false,
+                laggerOnSteal = toggleStates["Lagger on Steal"] or false,
+                giantPotion = toggleStates["Giant Potion"] or false,
+                autoPotion = toggleStates["Auto Potion"] or false,
                 alignKey = alignKey.Name,
             }
             writefile(savePath, HttpService:JSONEncode(data))
@@ -84,7 +84,7 @@ end
 loadSettings()
 
 local function triggerLagger()
-    if not toggleStates["LAGGER ON STEAL"] then return end
+    if not toggleStates["Lagger on Steal"] then return end
     task.spawn(function()
         local lagStrength = math.clamp(laggerPower / 40, 0.3, 3.0)
         settings().Network.IncomingReplicationLag = lagStrength
@@ -235,12 +235,12 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
             local char = LocalPlayer.Character
             local tool = char and char:FindFirstChildOfClass("Tool")
             if tool then
-                if toggleStates["LAGGER ON STEAL"] then triggerLagger() end
+                if toggleStates["Lagger on Steal"] then triggerLagger() end
                 tool:Activate()
-                if toggleStates["GIANT POTION"] then
+                if toggleStates["Auto Potion"] or toggleStates["Giant Potion"] then
                     task.spawn(ActivateGiantPotion)
                 end
-                if toggleStates["SPEED BOOST"] then enableSpeedBoost() end
+                if toggleStates["Speed Boost"] then enableSpeedBoost() end
             end
         end
     end)
@@ -559,7 +559,7 @@ end
 
 -- Main Buttons
 createMainToggle("FLASH TP", 0, toggleStates["FLASH TP"])
-createMainToggle("GIANT POTION", 28, toggleStates["GIANT POTION"])
+createMainToggle("AUTO POTION", 28, toggleStates["Auto Potion"])
 
 -- ALIGN Button (always blue)
 local alignBtn = Instance.new("TextButton")
@@ -624,8 +624,8 @@ discordLabel.TextXAlignment = Enum.TextXAlignment.Center
 discordLabel.Parent = main
 
 -- Settings Toggles
-makeSettingsToggle("LAG", 5, toggleStates["LAGGER ON STEAL"])
-makeSettingsToggle("SPEED BOOST", 32, toggleStates["SPEED BOOST"], function(state)
+makeSettingsToggle("LAG", 5, toggleStates["Lagger on Steal"])
+makeSettingsToggle("SPEED BOOST", 32, toggleStates["Speed Boost"], function(state)
     if state then enableSpeedBoost() else disableSpeedBoost() end
 end)
 
@@ -643,7 +643,7 @@ end, 12)
 createSlider(settingsScroll, 133, "SPEED", 16, 27, speedBoostMax, function(v)
     speedBoostMax = v
     saveSettings()
-    if toggleStates["SPEED BOOST"] then
+    if toggleStates["Speed Boost"] then
         disableSpeedBoost()
         enableSpeedBoost()
     end
@@ -660,5 +660,5 @@ end)
 -- Character Added Handling
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.3)
-    if toggleStates["SPEED BOOST"] then enableSpeedBoost() end
+    if toggleStates["Speed Boost"] then enableSpeedBoost() end
 end)
