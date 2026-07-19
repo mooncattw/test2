@@ -32,27 +32,6 @@ local stealBarFill = nil
 
 -- Helper functions
 local function getCharacter() return LocalPlayer.Character end
-local function getHumanoid()
-    local char = getCharacter()
-    return char and char:FindFirstChildOfClass("Humanoid")
-end
-
--- Auto Potion Function (fixed from script 2)
-local function triggerAutoPotion()
-    task.spawn(function()
-        task.wait(0.09)
-        local char = LocalPlayer.Character
-        local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or (char and char:FindFirstChild("Giant Potion"))
-        if potion then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum:EquipTool(potion)
-                task.wait(0.05)
-                potion:Activate()
-            end
-        end
-    end)
-end
 
 local function loadSettings()
     pcall(function()
@@ -189,7 +168,7 @@ local function ExecuteAlign()
     end
 end
 
--- Proximity Prompt Handling (FIXED)
+-- Proximity Prompt Handling (FIXED AUTO POTION FROM SCRIPT 2)
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if activeTriggers[prompt] then return end
     activeTriggers[prompt] = true
@@ -229,8 +208,20 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
             if tool then
                 if toggleStates["Lagger on Steal"] then triggerLagger() end
                 tool:Activate()
+                -- FIXED AUTO POTION FROM SCRIPT 2
                 if toggleStates["Auto Potion"] then
-                    triggerAutoPotion()
+                    task.spawn(function()
+                        task.wait(0.09)
+                        local potion = LocalPlayer.Backpack:FindFirstChild("Giant Potion") or (char and char:FindFirstChild("Giant Potion"))
+                        if potion then
+                            local hum = char:FindFirstChildOfClass("Humanoid")
+                            if hum then
+                                hum:EquipTool(potion)
+                                task.wait(0.05)
+                                potion:Activate()
+                            end
+                        end
+                    end)
                 end
                 if toggleStates["Speed Boost"] then enableSpeedBoost() end
             end
