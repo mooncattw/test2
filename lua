@@ -25,6 +25,7 @@ local LocalPlayer = Players.LocalPlayer
 _G.SubmitAfterCount = 1
 _G.SubmitAttempts = 10
 
+-- GUI görünürlüğünü kontrol et
 local function isGuiVisible(obj)
     if not obj or not obj.Visible then return false end
     local current = obj.Parent
@@ -36,27 +37,16 @@ local function isGuiVisible(obj)
     return true
 end
 
+-- Blacklist ve common words
 local blacklistedWords = {
-    "top","sec","min","fps","ping","loading","points","coins","cash","rebirth","slaps","money","speed","level","lvl","score"
+    "top", "sec", "min", "fps", "ping", "loading", "points", "coins", "cash", "rebirth",
+    "slaps", "money", "speed", "level", "lvl", "score"
 }
 
 local commonWords = {
-    ["the"]=true,["and"]=true,["for"]=true,["you"]=true,["your"]=true,["now"]=true,["new"]=true,["use"]=true,["get"]=true,["out"]=true,
-    ["all"]=true,["are"]=true,["can"]=true,["with"]=true,["from"]=true,["this"]=true,["that"]=true,["here"]=true,["more"]=true,["info"]=true,
-    ["redeem"]=true,["claim"]=true,["enter"]=true,["reward"]=true,["rewards"]=true,["update"]=true,["join"]=true,["group"]=true,
-    ["like"]=true,["follow"]=true,["sub"]=true,["click"]=true,["type"]=true,["copy"]=true,["paste"]=true,["server"]=true,["event"]=true,
-    ["live"]=true,["news"]=true,["soon"]=true,["available"]=true,["expired"]=true,["welcome"]=true,["thanks"]=true,["thank"]=true,
-    ["player"]=true,["players"]=true,["today"]=true,["time"]=true,["wait"]=true,["xp"]=true,["money"]=true,["sammy"]=true,
-    ["announcement"]=true,["announcements"]=true,["release"]=true,["released"]=true,["limited"]=true,["special"]=true,["gift"]=true,
-    ["pet"]=true,["pets"]=true,["egg"]=true,["luck"]=true,["boost"]=true,["double"]=true,["friend"]=true,["friends"]=true,
-    ["chat"]=true,["online"]=true,["offline"]=true,["invite"]=true,["party"]=true,["voice"]=true,["report"]=true,["block"]=true,
-    ["mute"]=true,["store"]=true,["shop"]=true,["inventory"]=true,["settings"]=true,["leaderboard"]=true,["lobby"]=true,
-    ["menu"]=true,["close"]=true,["open"]=true,["back"]=true,["next"]=true,["play"]=true,["exit"]=true,["loading"]=true,
-    ["negozio"]=true,["rinascita"]=true,["indice"]=true,["duelli"]=true,["scambio"]=true,["codici"]=true,["incremento"]=true,
-    ["amico"]=true,["drop"]=true,["present"]=true,["win"]=true,["wins"]=true,["winner"]=true,["winners"]=true,["winning"]=true,
-    ["winter"]=true,["victory"]=true,["lose"]=true,["loss"]=true,["losses"]=true,["defeat"]=true,["daily"]=true,["spin"]=true,
-    ["wheel"]=true,["prize"]=true,["bonus"]=true,["streak"]=true,["rank"]=true,["wave"]=true,["round"]=true,["score"]=true,
-    ["match"]=true,["versus"]=true,["battle"]=true,["quest"]=true
+    ["the"] = true, ["and"] = true, ["for"] = true, ["you"] = true, ["your"] = true,
+    ["now"] = true, ["new"] = true, ["use"] = true, ["get"] = true, ["out"] = true,
+    ["redeem"] = true, ["claim"] = true, ["enter"] = true, ["code"] = true
 }
 
 local function isBlacklisted(lowerText)
@@ -67,51 +57,55 @@ local function isBlacklisted(lowerText)
     return false
 end
 
-local function looksLikeCode(token)
-    if not token then return false end
-    if #token < 4 or #token > 20 then return false end
-    if not token:match("^%w+$") then return false end
-    if isBlacklisted(token:lower()) then return false end
-    local letterCount = 0
-    for _ in token:gmatch("%a") do letterCount = letterCount + 1 end
-    if letterCount < 3 then return false end
-    if token:match("^%d+[smhdSMHD]$") then return false end
-    local hasDigit = token:match("%d") ~= nil
-    local isAllUpper = (token == token:upper()) and (token:match("%a") ~= nil)
-    return hasDigit or isAllUpper
-end
-
+-- Son kelimenin tam olduğunu doğrula
 local function isLoneCode(text)
     if not text then return false end
     text = text:match("^%s*(.-)%s*$")
     if text == "" or text:find("%s") then return false end
-    if #text < 3 or #text > 20 then return false end
+    if #text < 4 or #text > 20 then return false end
     if not text:match("^%w+$") then return false end
     if isBlacklisted(text:lower()) then return false end
     if text:match("^%d+[smhdSMHD]$") then return false end
-    if text:match("^%d+$") then return #text >= 3 end
+    if text:match("^%d+$") then return #text >= 4 end
+
+    -- Son karakterin harf/rakam olduğunu doğrula
+    local lastChar = text:sub(-1)
+    if not lastChar:match("%w") then return false end
+
+    -- Minimum 3 harf gerekliliği
     local letters = 0
     for _ in text:gmatch("%a") do letters = letters + 1 end
-    return letters >= 2
+    return letters >= 3
 end
 
+-- Sadece son kelimeyi al
 local function extractCodesFromText(text)
     local found = {}
-    if not text then return found end
+    if not text or text == "" then return found end
+
     local trimmed = text:match("^%s*(.-)%s*$")
     trimmed = trimmed:gsub("<[^>]->", "")
-    if isLoneCode(trimmed) then
-        table.insert(found, trimmed)
-        return found
+
+    if trimmed == "" then return found end
+
+    -- Metni kelimelere ayır
+    local words = {}
+    for word in trimmed:gmatch("%S+") do
+        table.insert(words, word)
     end
-    for token in text:gmatch("%w+") do
-        if looksLikeCode(token) then
-            table.insert(found, token)
+
+    -- Sadece son kelimeyi kontrol et
+    if #words > 0 then
+        local lastWord = words[#words]
+        if isLoneCode(lastWord) then
+            table.insert(found, lastWord)
         end
     end
+
     return found
 end
 
+-- Clipboard fonksiyonları
 local function copyCodeToClipboard(code)
     local formattedCode = code
     if _G.CasingType == "Upper" then
@@ -126,9 +120,6 @@ local function copyCodeToClipboard(code)
     elseif toclipboard then
         pcall(function() toclipboard(formattedCode) end)
         success = true
-    elseif set_clipboard then
-        pcall(function() set_clipboard(formattedCode) end)
-        success = true
     elseif Clipboard and Clipboard.set then
         pcall(function() Clipboard.set(formattedCode) end)
         success = true
@@ -142,6 +133,7 @@ local function formatCode(code)
     return code
 end
 
+-- TextBox bulma
 local function _isCodeBox(obj)
     if not obj:IsA("TextBox") then return false end
     if ScreenGui and obj:IsDescendantOf(ScreenGui) then return false end
@@ -163,6 +155,7 @@ local function findCodeTextBox()
     return nil
 end
 
+-- Signal fonksiyonları
 local function fireSignal(sig)
     if not sig then return end
     pcall(function()
@@ -175,6 +168,7 @@ local function fireSignal(sig)
     if firesignal then pcall(function() firesignal(sig) end) end
 end
 
+-- Submit butonu kontrolü
 local function isSubmitButton(obj)
     if not (obj:IsA("TextButton") or obj:IsA("ImageButton")) then return false end
     if ScreenGui and obj:IsDescendantOf(ScreenGui) then return false end
@@ -200,6 +194,7 @@ local function fireSubmitButton(nearObj)
     return true
 end
 
+-- RemoteFunction ile redeem
 local _rfRemote = nil
 local function getRedemptionRF()
     if _rfRemote and _rfRemote.Parent then return _rfRemote end
@@ -232,21 +227,44 @@ local function redeemViaRF(code)
     return ok
 end
 
+-- Ana writeAndSubmit fonksiyonu (TAM VE EKSİKSİZ YAZMA GARANTİSİ)
 local function writeAndSubmit(code)
     if redeemViaRF(code) then return true end
+
     local textBox = findCodeTextBox()
     if not textBox then return false end
-    local formatted = formatCode(code)
-    pcall(function() textBox.ClearTextOnFocus = false end)
 
+    local formatted = formatCode(code)
+
+    -- TextBox'a odaklan
+    pcall(function()
+        textBox.ClearTextOnFocus = false
+        textBox:CaptureFocus()
+    end)
+
+    -- Metni temizle ve yeni kodu yaz
+    pcall(function()
+        textBox.Text = formatted
+        textBox.CursorPosition = #formatted + 1
+    end)
+
+    -- Son kelimenin tam olarak yazıldığını doğrulamak için bekle
+    task.wait(1.0)
+
+    -- TextBox'taki metni tekrar kontrol et
+    local currentText = textBox.Text
+    if currentText ~= formatted then
+        -- Metin eşleşmiyorsa, iptal et
+        return false
+    end
+
+    -- Kelime tamamen yazıldı, devam et
     if not collectedSeen[formatted] then
         collectedSeen[formatted] = true
         table.insert(collectedCodes, formatted)
     end
 
-    textBox.Text = formatted
-    textBox.CursorPosition = #formatted + 1
-
+    -- Submit işlemi
     local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
     local ready = #collectedCodes >= target
 
@@ -267,15 +285,41 @@ local function writeAndSubmit(code)
         table.clear(collectedCodes)
         table.clear(collectedSeen)
     end
+
     return true
 end
 
+-- Metin işleme fonksiyonu (Sadece son kelimeyi işler)
+local function processText(text)
+    if not text or text == "" then return end
+
+    -- Metni kelimelere ayır
+    local words = {}
+    for word in text:gmatch("%S+") do
+        table.insert(words, word)
+    end
+
+    -- Sadece son kelimeyi kontrol et
+    if #words > 0 then
+        local lastWord = words[#words]
+        if isLoneCode(lastWord) then
+            copyCodeToClipboard(lastWord)
+            if not pendingSeen[lastWord] then
+                pendingSeen[lastWord] = true
+                table.insert(pendingQueue, lastWord)
+            end
+        end
+    end
+end
+
+-- Trigger fonksiyonu
 local function triggerWrite()
     if writeBusy or not _G.AutoWriteEnabled or #pendingQueue == 0 then return end
     local focused = UserInputService:GetFocusedTextBox()
     if focused and ScreenGui and focused:IsDescendantOf(ScreenGui) then return end
     local box = findCodeTextBox()
     if not (box and isGuiVisible(box)) then return end
+
     writeBusy = true
     task.spawn(function()
         local ok, err = pcall(function()
@@ -292,6 +336,9 @@ local function triggerWrite()
     end)
 end
 
+-- Bağlantıları başlat
+local activeConnections = {}
+
 local function startAutoWriteLoop()
     if autoWriteConn then return end
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
@@ -304,126 +351,16 @@ local function startAutoWriteLoop()
     local boxRemConn = playerGui and playerGui.DescendantRemoving:Connect(function(obj)
         if obj == _cachedBox then _cachedBox = nil end
     end)
-    autoWriteConn = { Disconnect = function()
-        if boxConn then boxConn:Disconnect() end
-        if boxRemConn then boxRemConn:Disconnect() end
-    end }
+    autoWriteConn = {
+        Disconnect = function()
+            if boxConn then boxConn:Disconnect() end
+            if boxRemConn then boxRemConn:Disconnect() end
+        end
+    }
     table.insert(activeConnections, autoWriteConn)
 end
 
-local function extractStrings(val, out)
-    out = out or {}
-    local t = type(val)
-    if t == "string" then
-        table.insert(out, val)
-    elseif t == "table" then
-        for _, v in pairs(val) do
-            extractStrings(v, out)
-        end
-    end
-    return out
-end
-
-local function processText(text)
-    if not text or text == "" then return end
-    local codes = extractCodesFromText(text)
-    if #codes == 0 then return end
-    for _, code in ipairs(codes) do
-        copyCodeToClipboard(code)
-        if not pendingSeen[code] then
-            pendingSeen[code] = true
-            table.insert(pendingQueue, code)
-            triggerWrite()
-        end
-    end
-end
-
-local function resolveRemote()
-    if _G.PhiNotifyRemote then return _G.PhiNotifyRemote end
-    local Net
-    local deadline = tick() + 30
-    while not Net and tick() < deadline do
-        pcall(function()
-            local Pkgs = ReplicatedStorage:FindFirstChild("Packages")
-            if Pkgs then Net = Pkgs:FindFirstChild("Net") end
-        end)
-        if not Net then task.wait(0.5) end
-    end
-    if not Net then return nil end
-    local getinfo = debug and (debug.getinfo or debug.info)
-    local NC = nil
-    if getconnections and getinfo then
-        for _, d in ipairs(Net:GetDescendants()) do
-            if d:IsA("RemoteEvent") then
-                local ok, cs = pcall(getconnections, d.OnClientEvent)
-                if ok and cs then
-                    for _, c in ipairs(cs) do
-                        local f, fn = pcall(function() return c.Function end)
-                        if f and type(fn) == "function" then
-                            local i, info = pcall(getinfo, fn)
-                            if i and tostring((type(info) == "table" and (info.short_src or info.source)) or info or ""):find("NotificationController", 1, true) then
-                                NC = d
-                                break
-                            end
-                        end
-                    end
-                    if NC then break end
-                end
-            end
-        end
-    end
-    if not NC then
-        for _, d in ipairs(Net:GetDescendants()) do
-            if d:IsA("RemoteEvent") and d.Name:match("^RE/%x+$") then
-                NC = d
-                break
-            end
-        end
-    end
-    if NC then _G.PhiNotifyRemote = NC end
-    return NC
-end
-
-local function startMonitoring()
-    task.spawn(function()
-        local NC = resolveRemote()
-        if not NC then return end
-        local conn = NC.OnClientEvent:Connect(function(...)
-            if not _G.ScriptEnabled then return end
-            local strings = {}
-            for _, v in ipairs({...}) do
-                local t = type(v)
-                if t == "string" then
-                    table.insert(strings, v)
-                elseif t == "table" then
-                    for _, v2 in pairs(v) do
-                        if type(v2) == "string" then table.insert(strings, v2) end
-                    end
-                end
-            end
-            for _, s in ipairs(strings) do
-                processText(s)
-            end
-        end)
-        table.insert(activeConnections, conn)
-    end)
-end
-
-local activeConnections = {}
-
-local function cleanupMonitoring()
-    for _, conn in pairs(activeConnections) do
-        if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
-    end
-    table.clear(activeConnections)
-    table.clear(collectedCodes)
-    table.clear(collectedSeen)
-    table.clear(pendingQueue)
-    table.clear(pendingSeen)
-    writeBusy = false
-    autoWriteConn = nil
-end
-
+-- UI ve diğer fonksiyonlar (Aynı kalabilir)
 local function createAnimatedStroke(parent, thickness, speed)
     local s = Instance.new("UIStroke")
     s.Thickness = thickness or 1.5
@@ -479,6 +416,7 @@ local function createUI()
     mainCorner.Parent = MainFrame
     createAnimatedStroke(MainFrame, 2, 0.8)
 
+    -- UI kodları (Aynı kalabilir)
     local dragging, dragInput, dragStart, startPos
     MainFrame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -535,6 +473,7 @@ local function createUI()
     subtitle.TextXAlignment = Enum.TextXAlignment.Left
     subtitle.Parent = MainFrame
 
+    -- Auto Write Toggle
     local autoWriteRow = Instance.new("Frame")
     autoWriteRow.Size = UDim2.new(1, -20, 0, 40)
     autoWriteRow.Position = UDim2.new(0, 10, 0, 45)
@@ -583,6 +522,7 @@ local function createUI()
         TweenService:Create(awSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
     end)
 
+    -- Auto Submit Toggle
     local autoSubmitRow = Instance.new("Frame")
     autoSubmitRow.Size = UDim2.new(1, -20, 0, 40)
     autoSubmitRow.Position = UDim2.new(0, 10, 0, 90)
@@ -659,11 +599,26 @@ local function createUI()
     end)
 end
 
+-- Bağlantıları temizle
+local function cleanupMonitoring()
+    for _, conn in pairs(activeConnections) do
+        if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
+    end
+    table.clear(activeConnections)
+    table.clear(collectedCodes)
+    table.clear(collectedSeen)
+    table.clear(pendingQueue)
+    table.clear(pendingSeen)
+    writeBusy = false
+    autoWriteConn = nil
+end
+
+-- Başlatma fonksiyonu
 local function init()
     pcall(cleanupMonitoring)
     createUI()
-    startMonitoring()
     startAutoWriteLoop()
 end
 
+-- Başlat
 init()
