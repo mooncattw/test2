@@ -1,669 +1,1082 @@
-_G.ScriptEnabled = true
-_G.CasingType = "Normal"
-_G.AutoWriteEnabled = true
-_G.AutoSubmitEnabled = true
-
-local collectedCodes = {}
-local collectedSeen = {}
-local CODE_SEPARATOR = ""
-local pendingQueue = {}
-local pendingSeen = {}
-local writeBusy = false
-local autoWriteConn = nil
-local _cachedBox = nil
-local ScreenGui = nil
-local MainFrame = nil
-local SubmitBox = nil
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-
-_G.SubmitAfterCount = 1
-_G.SubmitAttempts = 10
-
-local function isGuiVisible(obj)
-    if not obj or not obj.Visible then return false end
-    local current = obj.Parent
+local cloneref = cloneref or function(object) return object end
+local Players           = cloneref(game:GetService("Players"))
+local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
+local RunService        = cloneref(game:GetService("RunService"))
+local UserInputService  = cloneref(game:GetService("UserInputService"))
+local HttpService       = cloneref(game:GetService("HttpService"))
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+if getgenv and getgenv().StopAura then pcall(getgenv().StopAura) end
+local CONFIG_FILE = "ace_code_sniper_auto_redeem_test_config.json"
+local savedConfig = {
+    codeSniper = true,
+    autoSubmit = true,
+    submitAfter = 3,
+    retypeInvalid = false,
+    riddleSolver = false,
+}
+pcall(function()
+    if type(isfile) == "function" and type(readfile) == "function"
+    and isfile(CONFIG_FILE) then
+        local decoded = HttpService:JSONDecode(readfile(CONFIG_FILE))
+        if type(decoded) == "table" then
+            if type(decoded.codeSniper) == "boolean" then
+                savedConfig.codeSniper = decoded.codeSniper
+            end
+            if type(decoded.autoSubmit) == "boolean" then
+                savedConfig.autoSubmit = decoded.autoSubmit
+            end
+            if type(decoded.submitAfter) == "number" then
+                savedConfig.submitAfter = math.max(1, math.floor(decoded.submitAfter))
+            end
+            if type(decoded.retypeInvalid) == "boolean" then
+                savedConfig.retypeInvalid = decoded.retypeInvalid
+            end
+            if type(decoded.riddleSolver) == "boolean" then
+                savedConfig.riddleSolver = decoded.riddleSolver
+            end
+        end
+    end
+end)
+local function saveConfig()
+    if type(writefile) ~= "function" then return end
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode({
+            codeSniper = savedConfig.codeSniper,
+            autoSubmit = savedConfig.autoSubmit,
+            submitAfter = savedConfig.submitAfter,
+            retypeInvalid = savedConfig.retypeInvalid,
+            riddleSolver = savedConfig.riddleSolver,
+        }))
+    end)
+end
+local _enabled              = savedConfig.codeSniper
+local _seen                 = {}
+local _focused              = nil
+local _lastBox              = nil
+local _autoAccept           = savedConfig.autoSubmit
+local _submitAfter          = savedConfig.submitAfter
+local _capturedParts        = {}
+local _lastWatchedBox       = nil
+local _boxTextConn          = nil
+local _boxAncestryConn      = nil
+local _boxVisibilityConns   = {}
+local _retypeInvalid        = savedConfig.retypeInvalid
+local _riddleSolver         = savedConfig.riddleSolver
+local _lastNonBlankBoxText  = ""
+local _pendingRejectedText  = nil
+local _pendingRejectedBox   = nil
+local _pendingRejectedUntil = 0
+local _pendingRejectedToken = 0
+local ACE_CASE_MODE      = "EXACT"
+local ACE_WORD_COUNT     = 1
+local KNOWN_CODE_BOX_PATH = {"Codes", "Codes", "CodeRedeem", "TextBox"}
+local setStatus, flashCode, appendToBox
+local rememberPendingSubmission, clearPendingSubmission, handleRedemptionFeedback
+local clearAceCapture
+local _lastStatusMsg = nil
+local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
+local getupvalues = (debug and debug.getupvalues) or getupvalues
+local getconns = getconnections or (debug and debug.getconnections)
+local setupv = (debug and debug.setupvalue) or setupvalue
+local REDEEM_GUID = "7d14a912-1040-4867-b005-98838eb9acc4"
+local RedeemRemote
+local function aceCodeBox()
+    local gui = playerGui:FindFirstChild("Codes")
+    if not gui then return nil end
+    local root = gui:FindFirstChild("Codes") or gui
+    local redeem = root:FindFirstChild("CodeRedeem")
+    local box = redeem and redeem:FindFirstChild("TextBox")
+    if box and box:IsA("TextBox") then return box end
+    for _, obj in ipairs(gui:GetDescendants()) do
+        if obj:IsA("TextBox") then return obj end
+    end
+end
+local function resolveAceRedeemRemote()
+    if RedeemRemote and RedeemRemote.Parent then return RedeemRemote end
+    local ok, api = pcall(require, Net)
+    if ok and type(api) == "table" then
+        local rok, rf = pcall(function() return api:RemoteFunction(REDEEM_GUID) end)
+        if rok and typeof(rf) == "Instance" then RedeemRemote = rf end
+    end
+    return RedeemRemote
+end
+local function killAceDebounce(fn)
+    if not (fn and setupv and getupvalues) then return end
+    local ok, ups = pcall(getupvalues, fn)
+    if ok and type(ups) == "table" then
+        for i, v in pairs(ups) do if type(v) == "boolean" then pcall(setupv, fn, i, false) end end
+    end
+end
+local function aceRedeemViaBox(code)
+    if not getconns then return false, "no getconnections" end
+    local box = aceCodeBox()
+    if not box then return false, "no codebox" end
+    local ok, conns = pcall(getconns, box.FocusLost)
+    if not ok or type(conns) ~= "table" or #conns == 0 then return false, "no connection" end
+    local fired = false
+    for _, c in ipairs(conns) do
+        local fn; pcall(function() fn = c.Function end)
+        killAceDebounce(fn)
+        box.Text = code; box.Active = true; box.Selectable = true
+        local fok = pcall(function() if c.Enabled ~= false then c:Fire(true) end end)
+        fired = fired or fok
+    end
+    return fired, fired and "sent" or "fire failed"
+end
+local function aceRedeemViaRemote(code)
+    local rf = resolveAceRedeemRemote()
+    if not rf then return false, "no remote" end
+    local ok, result = pcall(function() return rf:InvokeServer(code) end)
+    if not ok then return false, tostring(result) end
+    return true, result
+end
+local function aceRedeem(code)
+    local ok, res = aceRedeemViaBox(code)
+    if ok then return true, res end
+    if getconns then return false, res end
+    return aceRedeemViaRemote(code)
+end
+local COLORS = {
+    Window = Color3.fromRGB(6, 6, 7),
+    Row = Color3.fromRGB(15, 15, 17),
+    Control = Color3.fromRGB(35, 35, 39),
+    Log = Color3.fromRGB(10, 10, 12),
+    Border = Color3.fromRGB(82, 82, 89),
+    White = Color3.fromRGB(245, 245, 245),
+    Text = Color3.fromRGB(190, 190, 196),
+    Dim = Color3.fromRGB(120, 120, 130),
+    Accent = Color3.fromRGB(245, 245, 245),
+    Green = Color3.fromRGB(70, 210, 100),
+    Red = Color3.fromRGB(255, 70, 70),
+}
+local function addCorner(parent, radius)
+    local value = Instance.new("UICorner")
+    value.CornerRadius = UDim.new(0, radius)
+    value.Parent = parent
+    return value
+end
+local function addStroke(parent, color, thickness, transparency)
+    local value = Instance.new("UIStroke")
+    value.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    value.Color = color
+    value.Thickness = thickness or 1
+    value.Transparency = transparency or 0
+    value.Parent = parent
+    return value
+end
+local function makeLabel(parent, name, text, size, position, textSize, color, font)
+    local label = Instance.new("TextLabel")
+    label.Name = name
+    label.Size = size
+    label.Position = position
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextSize = textSize
+    label.TextColor3 = color
+    label.Font = font or Enum.Font.GothamMedium
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.Parent = parent
+    return label
+end
+pcall(function()
+    for _, name in ipairs({"ACECodeSniperUI", "AutoTypeCodesUI", "ACEPaste"}) do
+        local previous = game.CoreGui:FindFirstChild(name)
+        if previous then previous:Destroy() end
+    end
+end)
+for _, name in ipairs({"ACECodeSniperUI", "AutoTypeCodesUI", "ACEPaste"}) do
+    local previous = playerGui:FindFirstChild(name)
+    if previous then previous:Destroy() end
+end
+local GUI = Instance.new("ScreenGui")
+GUI.Name = "ACECodeSniperUI"
+GUI.ResetOnSpawn = false
+GUI.IgnoreGuiInset = true
+GUI.DisplayOrder = 999
+if not pcall(function()
+    GUI.Parent = game.CoreGui
+end) then
+    GUI.Parent = playerGui
+end
+local Window = Instance.new("Frame")
+Window.Name = "Window"
+Window.Size = UDim2.fromOffset(310, 370)
+Window.AnchorPoint = Vector2.new(1, 0)
+Window.Position = UDim2.new(1, -8, 0, 8)
+Window.BackgroundColor3 = COLORS.Window
+Window.BorderSizePixel = 0
+Window.ClipsDescendants = true
+Window.Parent = GUI
+addCorner(Window, 14)
+addStroke(Window, COLORS.White, 1, 0.58)
+local InterfaceScale = Instance.new("UIScale")
+InterfaceScale.Name = "InterfaceScale"
+InterfaceScale.Scale = 0.92
+InterfaceScale.Parent = Window
+local viewportConnection
+local function updateInterfaceScale()
+    local camera = workspace.CurrentCamera
+    if not camera then
+        InterfaceScale.Scale = 0.92
+        return
+    end
+    local viewport = camera.ViewportSize
+    local fitScale = math.min(
+        (viewport.X - 16) / 310,
+        (viewport.Y - 16) / 370
+    )
+    if UserInputService.TouchEnabled then
+        local mobileTarget = 0.57
+        InterfaceScale.Scale = math.max(0.45, math.min(mobileTarget, fitScale))
+    else
+        InterfaceScale.Scale = 0.92
+    end
+end
+local function watchViewport()
+    if viewportConnection then
+        viewportConnection:Disconnect()
+        viewportConnection = nil
+    end
+    local camera = workspace.CurrentCamera
+    if camera then
+        viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateInterfaceScale)
+    end
+    updateInterfaceScale()
+end
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchViewport)
+watchViewport()
+local BackgroundImage = Instance.new("ImageLabel")
+BackgroundImage.Name = "ACEBackground"
+BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+BackgroundImage.Position = UDim2.fromOffset(0, 0)
+BackgroundImage.BackgroundTransparency = 1
+BackgroundImage.Image = "rbxassetid://137692455767789"
+BackgroundImage.ImageTransparency = 0
+BackgroundImage.ScaleType = Enum.ScaleType.Stretch
+BackgroundImage.ZIndex = 1
+BackgroundImage.Parent = Window
+addCorner(BackgroundImage, 14)
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 64)
+Header.BackgroundTransparency = 1
+Header.Active = true
+Header.ZIndex = 3
+Header.Parent = Window
+local Console
+local ConsoleOutput
+local updateConsoleCanvas
+local featureStates = {}
+local CONSOLE_COLORS = {
+    Dim = "rgb(124,127,135)",
+    Amber = "rgb(214,158,92)",
+    Green = "rgb(105,190,132)",
+    Red = "rgb(218,105,105)",
+    Cyan = "rgb(101,174,183)",
+}
+local function scrollConsoleToBottom()
+    task.defer(function()
+        task.wait()
+        if not Console then return end
+        if updateConsoleCanvas then updateConsoleCanvas() end
+        local bottom = math.max(
+            0,
+            Console.AbsoluteCanvasSize.Y - Console.AbsoluteWindowSize.Y
+        )
+        Console.CanvasPosition = Vector2.new(0, bottom)
+    end)
+end
+local function appendConsoleStatus(name, activated)
+    if not ConsoleOutput then return end
+    local state = activated and "ON" or "OFF"
+    local stateColor = activated and CONSOLE_COLORS.Green or CONSOLE_COLORS.Red
+    local line = '<font color="' .. CONSOLE_COLORS.Dim .. '">[setting]</font> '
+        .. '<font color="' .. CONSOLE_COLORS.Amber .. '">' .. name .. "</font> "
+        .. '<font color="' .. CONSOLE_COLORS.Dim .. '">-&gt;</font> '
+        .. '<font color="' .. stateColor .. '">' .. state .. "</font>"
+    if ConsoleOutput.Text == "" then
+        ConsoleOutput.Text = line
+    else
+        ConsoleOutput.Text = ConsoleOutput.Text .. "\n\n" .. line
+    end
+    scrollConsoleToBottom()
+end
+local BrandMark = Instance.new("Frame")
+BrandMark.Name = "BrandMark"
+BrandMark.Size = UDim2.fromOffset(30, 30)
+BrandMark.Position = UDim2.fromOffset(17, 15)
+BrandMark.BackgroundColor3 = COLORS.Window
+BrandMark.BackgroundTransparency = 1
+BrandMark.BorderSizePixel = 0
+BrandMark.ClipsDescendants = true
+BrandMark.Parent = Header
+addCorner(BrandMark, 15)
+local BrandImage = Instance.new("ImageLabel")
+BrandImage.Name = "Logo"
+BrandImage.Size = UDim2.fromScale(1, 1)
+BrandImage.BackgroundTransparency = 1
+BrandImage.Image = "rbxassetid://71891923282375"
+BrandImage.ScaleType = Enum.ScaleType.Fit
+BrandImage.Parent = BrandMark
+addCorner(BrandImage, 15)
+makeLabel(
+    Header,
+    "Title",
+    "ACE CODE SNIPER",
+    UDim2.fromOffset(180, 25),
+    UDim2.fromOffset(56, 17),
+    15,
+    COLORS.White,
+    Enum.Font.GothamBold
+)
+local AutoWriteButton = Instance.new("TextButton")
+AutoWriteButton.Name = "AutoWrite"
+AutoWriteButton.Size = UDim2.fromOffset(47, 24)
+AutoWriteButton.Position = UDim2.new(1, -64, 0, 18)
+AutoWriteButton.BackgroundColor3 = COLORS.Accent
+AutoWriteButton.BorderSizePixel = 0
+AutoWriteButton.AutoButtonColor = false
+AutoWriteButton.Text = ""
+AutoWriteButton.Parent = Header
+addCorner(AutoWriteButton, 12)
+local AutoWriteStroke = addStroke(AutoWriteButton, COLORS.White, 1, 0.62)
+local AutoWriteKnob = Instance.new("Frame")
+AutoWriteKnob.Name = "Knob"
+AutoWriteKnob.Size = UDim2.fromOffset(20, 20)
+AutoWriteKnob.Position = UDim2.new(1, -22, 0.5, -10)
+AutoWriteKnob.BackgroundColor3 = COLORS.Window
+AutoWriteKnob.BorderSizePixel = 0
+AutoWriteKnob.Parent = AutoWriteButton
+addCorner(AutoWriteKnob, 10)
+local autoWriteEnabled = _enabled
+_enabled = autoWriteEnabled
+AutoWriteButton.BackgroundColor3 = autoWriteEnabled and COLORS.Accent or COLORS.Control
+AutoWriteStroke.Transparency = autoWriteEnabled and 0.62 or 0.88
+AutoWriteKnob.BackgroundColor3 = autoWriteEnabled and COLORS.Window or COLORS.White
+AutoWriteKnob.Position = autoWriteEnabled
+    and UDim2.new(1, -22, 0.5, -10)
+    or UDim2.new(0, 2, 0.5, -10)
+AutoWriteButton.MouseButton1Click:Connect(function()
+    autoWriteEnabled = not autoWriteEnabled
+    _enabled = autoWriteEnabled
+    if not autoWriteEnabled and clearAceCapture then
+        clearAceCapture()
+    end
+    savedConfig.codeSniper = autoWriteEnabled
+    saveConfig()
+    _lastStatusMsg = nil
+    AutoWriteButton.BackgroundColor3 = autoWriteEnabled and COLORS.Accent or COLORS.Control
+    AutoWriteStroke.Transparency = autoWriteEnabled and 0.62 or 0.88
+    AutoWriteKnob.BackgroundColor3 = autoWriteEnabled and COLORS.Window or COLORS.White
+    AutoWriteKnob.Position = autoWriteEnabled
+        and UDim2.new(1, -22, 0.5, -10)
+        or UDim2.new(0, 2, 0.5, -10)
+    if ConsoleOutput then
+        if autoWriteEnabled then
+            local scanningLine = '<font color="' .. CONSOLE_COLORS.Amber .. '">&gt;</font> '
+                .. '<font color="' .. CONSOLE_COLORS.Dim .. '">scanning for codes...</font>'
+            ConsoleOutput.Text = scanningLine
+            for _, featureName in ipairs({"Auto submit", "Riddle solver", "Retype invalid"}) do
+                if featureStates[featureName] then
+                    appendConsoleStatus(featureName, true)
+                end
+            end
+        else
+            ConsoleOutput.Text = '<font color="' .. CONSOLE_COLORS.Dim .. '">status:</font> '
+                .. '<font color="' .. CONSOLE_COLORS.Red .. '">OFF</font>\n'
+                .. '<font color="' .. CONSOLE_COLORS.Dim .. '">code sniper paused</font>'
+        end
+        scrollConsoleToBottom()
+    end
+end)
+local HeaderAccent = Instance.new("Frame")
+HeaderAccent.Name = "TitleDivider"
+HeaderAccent.Size = UDim2.new(1, -34, 0, 1)
+HeaderAccent.Position = UDim2.fromOffset(17, 54)
+HeaderAccent.BackgroundColor3 = COLORS.White
+HeaderAccent.BackgroundTransparency = 0.72
+HeaderAccent.BorderSizePixel = 0
+HeaderAccent.Parent = Header
+local Settings = Instance.new("Frame")
+Settings.Name = "Settings"
+Settings.Size = UDim2.new(1, 0, 0, 154)
+Settings.Position = UDim2.fromOffset(0, 65)
+Settings.BackgroundTransparency = 1
+Settings.ZIndex = 3
+Settings.Parent = Window
+local function makeCard(name, position, size)
+    local card = Instance.new("Frame")
+    card.Name = name
+    card.Position = position
+    card.Size = size
+    card.BackgroundColor3 = COLORS.Row
+    card.BackgroundTransparency = 0.68
+    card.BorderSizePixel = 0
+    card.Parent = Settings
+    addCorner(card, 9)
+    addStroke(card, COLORS.White, 1, 0.76)
+    return card
+end
+local function makeStateButton(parent, enabled, consoleName, onToggle)
+    parent.Active = true
+    featureStates[consoleName] = enabled
+    local button = Instance.new("TextButton")
+    button.Name = "State"
+    button.Size = UDim2.fromOffset(42, 20)
+    button.Position = UDim2.new(1, -50, 0.5, -10)
+    button.BackgroundColor3 = enabled and COLORS.Accent or COLORS.Control
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Text = enabled and "ON" or "OFF"
+    button.TextSize = 8
+    button.TextColor3 = enabled and COLORS.Window or COLORS.Dim
+    button.Font = Enum.Font.GothamBold
+    button.Parent = parent
+    addCorner(button, 6)
+    local outline = addStroke(button, COLORS.White, 1, enabled and 0.62 or 0.88)
+    local state = enabled
+    local function toggleState()
+        state = not state
+        featureStates[consoleName] = state
+        button.Text = state and "ON" or "OFF"
+        button.BackgroundColor3 = state and COLORS.Accent or COLORS.Control
+        button.TextColor3 = state and COLORS.Window or COLORS.Dim
+        outline.Transparency = state and 0.62 or 0.88
+        if autoWriteEnabled then
+            appendConsoleStatus(consoleName, state)
+        end
+        if onToggle then onToggle(state) end
+    end
+    button.MouseButton1Click:Connect(toggleState)
+    parent.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+        and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        local pointer = input.Position
+        local buttonPosition = button.AbsolutePosition
+        local buttonSize = button.AbsoluteSize
+        local clickedButton = pointer.X >= buttonPosition.X
+            and pointer.X <= buttonPosition.X + buttonSize.X
+            and pointer.Y >= buttonPosition.Y
+            and pointer.Y <= buttonPosition.Y + buttonSize.Y
+        if not clickedButton then
+            toggleState()
+        end
+    end)
+    return button
+end
+local AutoCard = makeCard("AutoSubmit", UDim2.fromOffset(17, 0), UDim2.fromOffset(135, 50))
+makeLabel(
+    AutoCard,
+    "Title",
+    "Auto submit",
+    UDim2.new(1, -58, 1, 0),
+    UDim2.fromOffset(12, 0),
+    11,
+    COLORS.White,
+    Enum.Font.GothamMedium
+)
+makeStateButton(AutoCard, _autoAccept, "Auto submit", function(state)
+    _autoAccept = state
+    savedConfig.autoSubmit = state
+    saveConfig()
+end)
+local AICard = makeCard("AIRiddles", UDim2.fromOffset(158, 0), UDim2.fromOffset(135, 50))
+local AITitle = makeLabel(
+    AICard,
+    "Title",
+    "Riddle solver",
+    UDim2.new(1, -58, 1, 0),
+    UDim2.fromOffset(12, 0),
+    11,
+    COLORS.White,
+    Enum.Font.GothamMedium
+)
+makeStateButton(AICard, _riddleSolver, "Riddle solver", function(state)
+    _riddleSolver = state
+    savedConfig.riddleSolver = state
+    saveConfig()
+end)
+local DelayCard = makeCard("SubmitAfter", UDim2.fromOffset(17, 57), UDim2.fromOffset(276, 43))
+makeLabel(
+    DelayCard,
+    "Title",
+    "Submit after msgs",
+    UDim2.fromOffset(145, 43),
+    UDim2.fromOffset(12, 0),
+    11,
+    COLORS.White,
+    Enum.Font.GothamMedium
+)
+local CounterShell = Instance.new("Frame")
+CounterShell.Name = "Counter"
+CounterShell.Size = UDim2.fromOffset(96, 31)
+CounterShell.Position = UDim2.new(1, -105, 0.5, -15)
+CounterShell.BackgroundColor3 = COLORS.Window
+CounterShell.BackgroundTransparency = 0.05
+CounterShell.BorderSizePixel = 0
+CounterShell.Parent = DelayCard
+addCorner(CounterShell, 7)
+addStroke(CounterShell, COLORS.White, 1, 0.86)
+local Minus = Instance.new("TextButton")
+Minus.Name = "Minus"
+Minus.Size = UDim2.fromOffset(25, 25)
+Minus.Position = UDim2.fromOffset(3, 3)
+Minus.BackgroundColor3 = COLORS.Control
+Minus.BorderSizePixel = 0
+Minus.AutoButtonColor = false
+Minus.Text = "-"
+Minus.TextSize = 16
+Minus.TextColor3 = COLORS.Text
+Minus.Font = Enum.Font.GothamBold
+Minus.Parent = CounterShell
+addCorner(Minus, 5)
+local Count = makeLabel(
+    CounterShell,
+    "Count",
+    tostring(_submitAfter),
+    UDim2.fromOffset(28, 25),
+    UDim2.fromOffset(34, 3),
+    17,
+    COLORS.White,
+    Enum.Font.GothamBold
+)
+Count.TextXAlignment = Enum.TextXAlignment.Center
+local Plus = Instance.new("TextButton")
+Plus.Name = "Plus"
+Plus.Size = UDim2.fromOffset(25, 25)
+Plus.Position = UDim2.fromOffset(68, 3)
+Plus.BackgroundColor3 = COLORS.Control
+Plus.BorderSizePixel = 0
+Plus.AutoButtonColor = false
+Plus.Text = "+"
+Plus.TextSize = 16
+Plus.TextColor3 = COLORS.Text
+Plus.Font = Enum.Font.GothamBold
+Plus.Parent = CounterShell
+addCorner(Plus, 5)
+Minus.MouseButton1Click:Connect(function()
+    _submitAfter = math.max(1, _submitAfter - 1)
+    Count.Text = tostring(_submitAfter)
+    savedConfig.submitAfter = _submitAfter
+    clearAceCapture()
+    saveConfig()
+end)
+Plus.MouseButton1Click:Connect(function()
+    _submitAfter += 1
+    Count.Text = tostring(_submitAfter)
+    savedConfig.submitAfter = _submitAfter
+    clearAceCapture()
+    saveConfig()
+end)
+local RetypeCard = makeCard("RetypeInvalid", UDim2.fromOffset(17, 103), UDim2.fromOffset(276, 38))
+makeLabel(
+    RetypeCard,
+    "Title",
+    "Retype invalid",
+    UDim2.new(1, -65, 1, 0),
+    UDim2.fromOffset(12, 0),
+    11,
+    COLORS.White,
+    Enum.Font.GothamMedium
+)
+local RetypeState = makeStateButton(RetypeCard, _retypeInvalid, "Retype invalid", function(state)
+    _retypeInvalid = state
+    savedConfig.retypeInvalid = state
+    saveConfig()
+end)
+RetypeState.Position = UDim2.new(1, -50, 0.5, -10)
+Console = Instance.new("ScrollingFrame")
+Console.Name = "Console"
+Console.Size = UDim2.new(1, -34, 0, 127)
+Console.Position = UDim2.fromOffset(17, 216)
+Console.BackgroundColor3 = COLORS.Log
+Console.BorderSizePixel = 0
+Console.ClipsDescendants = true
+Console.Active = true
+Console.ScrollingEnabled = true
+Console.ScrollingDirection = Enum.ScrollingDirection.Y
+Console.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+Console.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
+Console.CanvasSize = UDim2.new(0, 0, 0, 0)
+Console.AutomaticCanvasSize = Enum.AutomaticSize.None
+Console.ScrollBarThickness = 4
+Console.ScrollBarImageColor3 = COLORS.Dim
+Console.ZIndex = 3
+Console.Parent = Window
+addCorner(Console, 9)
+addStroke(Console, COLORS.White, 1, 0.88)
+ConsoleOutput = Instance.new("TextLabel")
+ConsoleOutput.Name = "ConsoleOutput"
+ConsoleOutput.Size = UDim2.new(1, -18, 0, 115)
+ConsoleOutput.AutomaticSize = Enum.AutomaticSize.Y
+ConsoleOutput.Position = UDim2.fromOffset(9, 6)
+ConsoleOutput.BackgroundTransparency = 1
+ConsoleOutput.RichText = true
+if autoWriteEnabled then
+    ConsoleOutput.Text = '<font color="' .. CONSOLE_COLORS.Amber .. '">&gt;</font> '
+        .. '<font color="' .. CONSOLE_COLORS.Dim .. '">scanning for codes...</font>'
+else
+    ConsoleOutput.Text = '<font color="' .. CONSOLE_COLORS.Dim .. '">status:</font> '
+        .. '<font color="' .. CONSOLE_COLORS.Red .. '">OFF</font>\n'
+        .. '<font color="' .. CONSOLE_COLORS.Dim .. '">code sniper paused</font>'
+end
+ConsoleOutput.TextSize = 14
+ConsoleOutput.Font = Enum.Font.Code
+ConsoleOutput.TextColor3 = COLORS.Dim
+ConsoleOutput.TextXAlignment = Enum.TextXAlignment.Left
+ConsoleOutput.TextYAlignment = Enum.TextYAlignment.Top
+ConsoleOutput.TextWrapped = true
+ConsoleOutput.ZIndex = 4
+ConsoleOutput.Parent = Console
+local CONSOLE_BOTTOM_PADDING = 30
+updateConsoleCanvas = function()
+    if not Console or not ConsoleOutput then return end
+    local contentHeight = ConsoleOutput.Position.Y.Offset
+        + ConsoleOutput.AbsoluteSize.Y
+        + CONSOLE_BOTTOM_PADDING
+    Console.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
+end
+ConsoleOutput:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateConsoleCanvas)
+task.defer(updateConsoleCanvas)
+local DiscordFooter = makeLabel(
+    Window,
+    "DiscordFooter",
+    "discord.gg/aceduels",
+    UDim2.fromOffset(140, 19),
+    UDim2.new(0.5, -70, 0, 346),
+    10,
+    COLORS.White,
+    Enum.Font.GothamBold
+)
+DiscordFooter.TextXAlignment = Enum.TextXAlignment.Center
+DiscordFooter.BackgroundColor3 = COLORS.Window
+DiscordFooter.BackgroundTransparency = 1
+DiscordFooter.TextStrokeColor3 = COLORS.Window
+DiscordFooter.TextStrokeTransparency = 0.45
+DiscordFooter.ZIndex = 3
+do
+    local dragging = false
+    local dragStart
+    local startPosition
+    Header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPosition = Window.Position
+        end
+    end)
+    Header.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (
+            input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch
+        ) then
+            local delta = input.Position - dragStart
+            Window.Position = UDim2.new(
+                startPosition.X.Scale,
+                startPosition.X.Offset + delta.X,
+                startPosition.Y.Scale,
+                startPosition.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+local function col3ToRich(col)
+    if col == COLORS.Green then return CONSOLE_COLORS.Green end
+    if col == COLORS.Red then return CONSOLE_COLORS.Red end
+    if col == COLORS.Text then return CONSOLE_COLORS.Amber end
+    if col == COLORS.White then return CONSOLE_COLORS.Cyan end
+    if col == COLORS.Dim then return CONSOLE_COLORS.Dim end
+    return string.format(
+        "rgb(%d,%d,%d)",
+        math.floor(col.R * 255 + 0.5),
+        math.floor(col.G * 255 + 0.5),
+        math.floor(col.B * 255 + 0.5)
+    )
+end
+function setStatus(msg, col)
+    if not ConsoleOutput then return end
+    if not _enabled then return end
+    if msg == _lastStatusMsg then return end
+    _lastStatusMsg = msg
+    col = col or COLORS.Dim
+    local line = '<font color="' .. col3ToRich(col) .. '">' .. tostring(msg) .. "</font>"
+    if ConsoleOutput.Text == "" then
+        ConsoleOutput.Text = line
+    else
+        ConsoleOutput.Text = ConsoleOutput.Text .. "\n\n" .. line
+    end
+    scrollConsoleToBottom()
+end
+function flashCode(code, col)
+    if not code or code == "" or code == "—" then return end
+    setStatus("[code] -> " .. tostring(code), col or COLORS.White)
+end
+local function resetPasteCounter()
+    _capturedParts = {}
+end
+clearAceCapture = function()
+    _capturedParts = {}
+end
+local function clearBoxWatchers()
+    if _boxTextConn then pcall(function() _boxTextConn:Disconnect() end) end
+    if _boxAncestryConn then pcall(function() _boxAncestryConn:Disconnect() end) end
+    for _, connection in ipairs(_boxVisibilityConns) do
+        pcall(function() connection:Disconnect() end)
+    end
+    _boxTextConn = nil
+    _boxAncestryConn = nil
+    _boxVisibilityConns = {}
+    _lastWatchedBox = nil
+end
+local function isBoxStillOpen(box)
+    if not box or not box.Parent then return false end
+    local current = box
     while current do
-        if current:IsA("GuiObject") and not current.Visible then return false end
-        if current:IsA("ScreenGui") and not current.Enabled then return false end
+        if current:IsA("GuiObject") and current.Visible == false then
+            return false
+        end
+        if current:IsA("ScreenGui") and current.Enabled == false then
+            return false
+        end
         current = current.Parent
     end
     return true
 end
-
-local blacklistedWords = {
-    "top","sec","min","fps","ping","loading","points","coins","cash","rebirth","slaps","money","speed","level","lvl","score"
+local function resolveCodeBox()
+    local node = playerGui
+    for _, name in ipairs(KNOWN_CODE_BOX_PATH) do
+        if not node then break end
+        node = node:FindFirstChild(name)
+    end
+    if node and node:IsA("TextBox") and isBoxStillOpen(node) then
+        return node
+    end
+    if isBoxStillOpen(_focused) then return _focused end
+    if isBoxStillOpen(_lastBox) then return _lastBox end
+    return nil
+end
+local function watchBoxForBlankReset(box)
+    if not box or _lastWatchedBox == box then return end
+    clearBoxWatchers()
+    _lastWatchedBox = box
+    if box.Text ~= "" then _lastNonBlankBoxText = box.Text end
+    _boxTextConn = box:GetPropertyChangedSignal("Text"):Connect(function()
+        if box.Text == "" then
+            resetPasteCounter()
+        else
+            _lastNonBlankBoxText = box.Text
+        end
+    end)
+    _boxAncestryConn = box.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            resetPasteCounter()
+            clearBoxWatchers()
+        end
+    end)
+    local current = box
+    while current do
+        if current:IsA("GuiObject") then
+            table.insert(_boxVisibilityConns, current:GetPropertyChangedSignal("Visible"):Connect(function()
+                if not isBoxStillOpen(box) then
+                    resetPasteCounter()
+                    clearBoxWatchers()
+                end
+            end))
+        elseif current:IsA("ScreenGui") then
+            table.insert(_boxVisibilityConns, current:GetPropertyChangedSignal("Enabled"):Connect(function()
+                if not isBoxStillOpen(box) then
+                    resetPasteCounter()
+                    clearBoxWatchers()
+                end
+            end))
+        end
+        current = current.Parent
+    end
+end
+UserInputService.TextBoxFocused:Connect(function(box)
+    if box:IsDescendantOf(GUI) then return end
+    if box ~= aceCodeBox() then return end
+    _focused = box
+    _lastBox = box
+    watchBoxForBlankReset(box)
+    if _enabled then setStatus("Ready", COLORS.Green) end
+end)
+UserInputService.TextBoxFocusReleased:Connect(function(box)
+    if box:IsDescendantOf(GUI) then return end
+    local codeBox = aceCodeBox()
+    if box ~= codeBox and box ~= _lastBox then return end
+    if _retypeInvalid and rememberPendingSubmission
+    and (box == codeBox or box == _lastBox) then
+        local submittedText = box.Text ~= "" and box.Text or _lastNonBlankBoxText
+        rememberPendingSubmission(box, submittedText, false)
+    end
+    if _focused == box then
+        _focused = nil
+        if _enabled then
+            setStatus((_lastBox and _lastBox.Parent) and "Ready" or "Click code box first",
+                (_lastBox and _lastBox.Parent) and COLORS.Green or COLORS.Dim)
+        end
+    end
+end)
+clearPendingSubmission = function()
+    _pendingRejectedToken += 1
+    _pendingRejectedText = nil
+    _pendingRejectedBox = nil
+    _pendingRejectedUntil = 0
+end
+rememberPendingSubmission = function(box, text, replaceExisting)
+    if not _retypeInvalid or not text or text == "" then return end
+    if not replaceExisting
+    and _pendingRejectedText
+    and os.clock() <= _pendingRejectedUntil then
+        return
+    end
+    _pendingRejectedToken += 1
+    local token = _pendingRejectedToken
+    _pendingRejectedText = text
+    _pendingRejectedBox = box
+    _pendingRejectedUntil = os.clock() + 8
+    task.delay(8, function()
+        if token == _pendingRejectedToken then
+            clearPendingSubmission()
+        end
+    end)
+end
+local function restoreRejectedText(box, previousText)
+    if not _retypeInvalid or not previousText or previousText == "" then
+        return false
+    end
+    RunService.Heartbeat:Wait()
+    local repasteBox = resolveCodeBox() or box
+    if not repasteBox or not isBoxStillOpen(repasteBox) then
+        return false
+    end
+    local restored = pcall(function()
+        repasteBox.Text = previousText
+    end)
+    if restored then
+        _lastBox = repasteBox
+        watchBoxForBlankReset(repasteBox)
+    end
+    return restored
+end
+handleRedemptionFeedback = function(text, feedbackObject)
+    if not _retypeInvalid or not _pendingRejectedText then return end
+    if os.clock() > _pendingRejectedUntil then
+        clearPendingSubmission()
+        return
+    end
+    if feedbackObject and feedbackObject:IsDescendantOf(GUI) then return end
+    local lower = tostring(text or ""):lower()
+    local rejected = lower:find("invalid code", 1, true)
+        or lower:find("code is invalid", 1, true)
+        or lower:find("expired", 1, true)
+        or lower:find("already redeemed", 1, true)
+        or lower:find("already used", 1, true)
+        or lower:find("doesn't exist", 1, true)
+        or lower:find("does not exist", 1, true)
+        or lower:find("not found", 1, true)
+        or lower:find("rejected", 1, true)
+    if not rejected then return end
+    local previousText = _pendingRejectedText
+    local previousBox = _pendingRejectedBox
+    local restored = restoreRejectedText(previousBox, previousText)
+    clearPendingSubmission()
+    if restored then
+        setStatus("Invalid - repasted: " .. previousText, COLORS.Text)
+        flashCode(previousText, COLORS.Red)
+    end
+end
+function appendToBox(text)
+    if not text or text == "" then return end
+    if _lastWatchedBox and not isBoxStillOpen(_lastWatchedBox) then
+        resetPasteCounter()
+        clearBoxWatchers()
+    end
+    local box = aceCodeBox()
+    _capturedParts[#_capturedParts + 1] = text
+    local combinedCode = table.concat(_capturedParts)
+    local capturedCount = #_capturedParts
+    if box then
+        _lastBox = box
+        watchBoxForBlankReset(box)
+        local boxWasFocused = UserInputService:GetFocusedTextBox() == box
+        box.Text = combinedCode
+        if boxWasFocused then
+            pcall(function()
+                local caretEnd = #combinedCode + 1
+                box.CursorPosition = caretEnd
+                box.SelectionStart = caretEnd
+            end)
+        end
+    else
+        setStatus("Captured; code box is closed", COLORS.Text)
+    end
+    setStatus("Pasted " .. tostring(capturedCount) .. "/" .. tostring(_submitAfter), COLORS.Green)
+    flashCode(combinedCode, COLORS.Green)
+    if capturedCount >= _submitAfter then
+        _capturedParts = {}
+        if _autoAccept then
+            rememberPendingSubmission(box, combinedCode, true)
+            local ok, res = aceRedeem(combinedCode)
+            local success = ok and (type(res) ~= "table" or res.success or res.Success)
+            if success then
+                setStatus("Redeemed: " .. combinedCode, COLORS.Green)
+            else
+                local restored = restoreRejectedText(box, combinedCode)
+                clearPendingSubmission()
+                if restored then
+                    setStatus("Invalid - repasted: " .. combinedCode, COLORS.Text)
+                    flashCode(combinedCode, COLORS.Red)
+                else
+                    setStatus("Invalid / cooldown", COLORS.Red)
+                end
+            end
+        end
+    end
+end
+local function watchRedemptionFeedbackObject(obj)
+    if not (obj:IsA("TextLabel") or obj:IsA("TextButton")) then return end
+    handleRedemptionFeedback(obj.Text or "", obj)
+    obj:GetPropertyChangedSignal("Text"):Connect(function()
+        handleRedemptionFeedback(obj.Text or "", obj)
+    end)
+end
+for _, obj in ipairs(playerGui:GetDescendants()) do
+    watchRedemptionFeedbackObject(obj)
+end
+playerGui.DescendantAdded:Connect(function(obj)
+    task.wait(0.04)
+    watchRedemptionFeedbackObject(obj)
+end)
+local function aceRemotesFromFunction(fn)
+    if not getupvalues then return {} end
+    local ok, values = pcall(getupvalues, fn)
+    local remotes = {}
+    if ok and type(values) == "table" then
+        for _, value in pairs(values) do
+            if typeof(value) == "Instance"
+            and (value:IsA("RemoteEvent")
+                or value:IsA("RemoteFunction")
+                or value:IsA("UnreliableRemoteEvent"))
+            and value.Parent == Net then
+                table.insert(remotes, value)
+            end
+        end
+    end
+    return remotes
+end
+local function resolveAceNotifyRemote()
+    local ok, controller = pcall(function()
+        return require(ReplicatedStorage.Controllers:FindFirstChild(
+            "NotificationController",
+            true
+        ))
+    end)
+    if ok and type(controller) == "table" and type(controller.Start) == "function" then
+        return aceRemotesFromFunction(controller.Start)[1]
+    end
+end
+local ACE_POSITIONS = {
+    Top = true,
+    Bottom = true,
+    Center = true,
+    Middle = true,
+    Left = true,
+    Right = true,
+    TopRight = true,
+    TopLeft = true,
+    BottomRight = true,
+    BottomLeft = true,
 }
-
-local commonWords = {
-    ["the"]=true,["and"]=true,["for"]=true,["you"]=true,["your"]=true,["now"]=true,["new"]=true,["use"]=true,["get"]=true,["out"]=true,
-    ["all"]=true,["are"]=true,["can"]=true,["with"]=true,["from"]=true,["this"]=true,["that"]=true,["here"]=true,["more"]=true,["info"]=true,
-    ["redeem"]=true,["claim"]=true,["enter"]=true,["reward"]=true,["rewards"]=true,["update"]=true,["join"]=true,["group"]=true,
-    ["like"]=true,["follow"]=true,["sub"]=true,["click"]=true,["type"]=true,["copy"]=true,["paste"]=true,["server"]=true,["event"]=true,
-    ["live"]=true,["news"]=true,["soon"]=true,["available"]=true,["expired"]=true,["welcome"]=true,["thanks"]=true,["thank"]=true,
-    ["player"]=true,["players"]=true,["today"]=true,["time"]=true,["wait"]=true,["xp"]=true,["money"]=true,["sammy"]=true,
-    ["announcement"]=true,["announcements"]=true,["release"]=true,["released"]=true,["limited"]=true,["special"]=true,["gift"]=true,
-    ["pet"]=true,["pets"]=true,["egg"]=true,["luck"]=true,["boost"]=true,["double"]=true,["friend"]=true,["friends"]=true,
-    ["chat"]=true,["online"]=true,["offline"]=true,["invite"]=true,["party"]=true,["voice"]=true,["report"]=true,["block"]=true,
-    ["mute"]=true,["store"]=true,["shop"]=true,["inventory"]=true,["settings"]=true,["leaderboard"]=true,["lobby"]=true,
-    ["menu"]=true,["close"]=true,["open"]=true,["back"]=true,["next"]=true,["play"]=true,["exit"]=true,["loading"]=true,
-    ["negozio"]=true,["rinascita"]=true,["indice"]=true,["duelli"]=true,["scambio"]=true,["codici"]=true,["incremento"]=true,
-    ["amico"]=true,["drop"]=true,["present"]=true,["win"]=true,["wins"]=true,["winner"]=true,["winners"]=true,["winning"]=true,
-    ["winter"]=true,["victory"]=true,["lose"]=true,["loss"]=true,["losses"]=true,["defeat"]=true,["daily"]=true,["spin"]=true,
-    ["wheel"]=true,["prize"]=true,["bonus"]=true,["streak"]=true,["rank"]=true,["wave"]=true,["round"]=true,["score"]=true,
-    ["match"]=true,["versus"]=true,["battle"]=true,["quest"]=true
-}
-
-local function isBlacklisted(lowerText)
-    if commonWords[lowerText] then return true end
-    for _, word in ipairs(blacklistedWords) do
-        if lowerText:find(word, 1, true) then return true end
+local function isAceAnnouncement(...)
+    local args = table.pack(...)
+    if args.n == 0 or typeof(args[1]) ~= "string" then return false end
+    for index = 2, args.n do
+        local value = args[index]
+        if typeof(value) == "string"
+        and (value:find("Sounds%.")
+            or value:find("rbxassetid")
+            or ACE_POSITIONS[value]) then
+            return true
+        end
     end
     return false
 end
-
-local function looksLikeCode(token)
-    if not token then return false end
-    if #token < 4 or #token > 20 then return false end
-    if not token:match("^%w+$") then return false end
-    if isBlacklisted(token:lower()) then return false end
-    local letterCount = 0
-    for _ in token:gmatch("%a") do letterCount = letterCount + 1 end
-    if letterCount < 3 then return false end
-    if token:match("^%d+[smhdSMHD]$") then return false end
-    local hasDigit = token:match("%d") ~= nil
-    local isAllUpper = (token == token:upper()) and (token:match("%a") ~= nil)
-    return hasDigit or isAllUpper
+local function aceStripRich(text)
+    if type(text) ~= "string" then return tostring(text) end
+    return (text:gsub("<[^>]->", ""))
 end
-
-local function isLoneCode(text)
-    if not text then return false end
-    text = text:match("^%s*(.-)%s*$")
-    if text == "" or text:find("%s") then return false end
-    if #text < 3 or #text > 20 then return false end
-    if not text:match("^%w+$") then return false end
-    if isBlacklisted(text:lower()) then return false end
-    if text:match("^%d+[smhdSMHD]$") then return false end
-    if text:match("^%d+$") then return #text >= 3 end
-    local letters = 0
-    for _ in text:gmatch("%a") do letters = letters + 1 end
-    return letters >= 2
-end
-
-local function extractCodesFromText(text)
-    local found = {}
-    if not text then return found end
-    local trimmed = text:match("^%s*(.-)%s*$")
-    trimmed = trimmed:gsub("<[^>]->", "")
-    if isLoneCode(trimmed) then
-        table.insert(found, trimmed)
-        return found
+local function aceApplyCase(code)
+    if ACE_CASE_MODE == "UPPER" then
+        return code:upper()
+    elseif ACE_CASE_MODE == "lower" then
+        return code:lower()
     end
-    for token in text:gmatch("%w+") do
-        if looksLikeCode(token) then
-            table.insert(found, token)
-        end
-    end
-    return found
-end
-
-local function copyCodeToClipboard(code)
-    local formattedCode = code
-    if _G.CasingType == "Upper" then
-        formattedCode = string.upper(code)
-    elseif _G.CasingType == "Lower" then
-        formattedCode = string.lower(code)
-    end
-    local success = false
-    if setclipboard then
-        pcall(function() setclipboard(formattedCode) end)
-        success = true
-    elseif toclipboard then
-        pcall(function() toclipboard(formattedCode) end)
-        success = true
-    elseif set_clipboard then
-        pcall(function() set_clipboard(formattedCode) end)
-        success = true
-    elseif Clipboard and Clipboard.set then
-        pcall(function() Clipboard.set(formattedCode) end)
-        success = true
-    end
-    return success
-end
-
-local function formatCode(code)
-    if _G.CasingType == "Upper" then return string.upper(code) end
-    if _G.CasingType == "Lower" then return string.lower(code) end
     return code
 end
-
-local function _isCodeBox(obj)
-    if not obj:IsA("TextBox") then return false end
-    if ScreenGui and obj:IsDescendantOf(ScreenGui) then return false end
-    local hint = ((obj.PlaceholderText or "") .. " " .. obj.Name):lower()
-    return hint:find("code") or hint:find("redeem") or hint:find("here")
-end
-
-local function findCodeTextBox()
-    if _cachedBox and _cachedBox.Parent and isGuiVisible(_cachedBox) then return _cachedBox end
-    _cachedBox = nil
-    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not playerGui then return nil end
-    for _, obj in ipairs(playerGui:GetDescendants()) do
-        if _isCodeBox(obj) and isGuiVisible(obj) then
-            _cachedBox = obj
-            return obj
-        end
+local function aceTokenize(text)
+    local words = {}
+    for word in text:gmatch("[%w_]+") do
+        words[#words + 1] = word
     end
-    return nil
+    return words
 end
-
-local function fireSignal(sig)
-    if not sig then return end
-    pcall(function()
-        if getconnections then
-            for _, c in ipairs(getconnections(sig)) do
-                if c.Fire then c:Fire() end
-            end
-        end
+local aceCollectBuffer = {}
+local function onAceAnnouncement(...)
+    local text = aceStripRich(tostring((...) or ""))
+    if text == "" then return end
+    for _, word in ipairs(aceTokenize(text)) do
+        aceCollectBuffer[#aceCollectBuffer + 1] = word
+    end
+    local parts = {}
+    for index = 1, math.min(#aceCollectBuffer, ACE_WORD_COUNT) do
+        parts[index] = aceCollectBuffer[index]
+    end
+    if #aceCollectBuffer < ACE_WORD_COUNT then return end
+    aceCollectBuffer = {}
+    local captured = aceApplyCase(table.concat(parts))
+    if captured == "" or _seen[captured] then return end
+    _seen[captured] = true
+    task.delay(1.25, function() _seen[captured] = nil end)
+    appendToBox(captured)
+end
+local aceNotifyRemote = resolveAceNotifyRemote()
+local aceListenConnection
+if aceNotifyRemote then
+    if getgenv then
+        local previous = getgenv().ACECodeSniperNotifyConnection
+        if previous then pcall(function() previous:Disconnect() end) end
+    end
+    aceListenConnection = aceNotifyRemote.OnClientEvent:Connect(function(...)
+        if not _enabled or not isAceAnnouncement(...) then return end
+        pcall(onAceAnnouncement, ...)
     end)
-    if firesignal then pcall(function() firesignal(sig) end) end
-end
-
-local function isSubmitButton(obj)
-    if not (obj:IsA("TextButton") or obj:IsA("ImageButton")) then return false end
-    if ScreenGui and obj:IsDescendantOf(ScreenGui) then return false end
-    if not isGuiVisible(obj) then return false end
-    local hint = (((obj:IsA("TextButton") and obj.Text) or "") .. " " .. obj.Name):lower()
-    return hint:find("redeem") ~= nil or hint:find("submit") ~= nil
-end
-
-local function fireSubmitButton(nearObj)
-    local target = nil
-    local container = nearObj and nearObj.Parent or nil
-    local levels = 0
-    while container and not target and levels < 5 do
-        for _, obj in ipairs(container:GetDescendants()) do
-            if isSubmitButton(obj) then target = obj break end
-        end
-        container = container.Parent
-        levels = levels + 1
-    end
-    if not target then return false end
-    fireSignal(target.MouseButton1Click)
-    fireSignal(target.Activated)
-    return true
-end
-
-local _rfRemote = nil
-local function getRedemptionRF()
-    if _rfRemote and _rfRemote.Parent then return _rfRemote end
-    _rfRemote = nil
-    local rfFolder = ReplicatedStorage:FindFirstChild("RF")
-    if rfFolder then
-        for _, v in ipairs(rfFolder:GetChildren()) do
-            if v.Name == "RequestRedemption" and v:IsA("RemoteFunction") then
-                _rfRemote = v
-                return _rfRemote
-            end
-        end
-    end
-    if getinstances then
-        for _, v in ipairs(getinstances()) do
-            if v.Name == "RequestRedemption" and v:IsA("RemoteFunction") then
-                _rfRemote = v
-                return _rfRemote
-            end
-        end
-    end
-    return _rfRemote
-end
-
-local function redeemViaRF(code)
-    local rf = getRedemptionRF()
-    if not rf then return false end
-    local formatted = formatCode(code)
-    local ok = pcall(function() return rf:InvokeServer(formatted) end)
-    return ok
-end
-
-local function writeAndSubmit(code)
-    if redeemViaRF(code) then return true end
-    local textBox = findCodeTextBox()
-    if not textBox then return false end
-    local formatted = formatCode(code)
-    pcall(function() textBox.ClearTextOnFocus = false end)
-
-    if not collectedSeen[formatted] then
-        collectedSeen[formatted] = true
-        table.insert(collectedCodes, formatted)
-    end
-
-    textBox.Text = formatted
-    textBox.CursorPosition = #formatted + 1
-
-    local target = math.max(1, tonumber(_G.SubmitAfterCount) or 1)
-    local ready = #collectedCodes >= target
-
-    if ready and _G.AutoSubmitEnabled then
-        local fullText = table.concat(collectedCodes, CODE_SEPARATOR)
-        for i = 1, _G.SubmitAttempts do
-            local box = findCodeTextBox()
-            if not box then break end
-            pcall(function()
-                box:CaptureFocus()
-                box.Text = fullText
-                box.CursorPosition = #fullText + 1
-            end)
-            pcall(function() box.Text = fullText end)
-            pcall(function() box:ReleaseFocus(true) end)
-            fireSubmitButton(box)
-        end
-        table.clear(collectedCodes)
-        table.clear(collectedSeen)
-    end
-    return true
-end
-
-local function triggerWrite()
-    if writeBusy or not _G.AutoWriteEnabled or #pendingQueue == 0 then return end
-    local focused = UserInputService:GetFocusedTextBox()
-    if focused and ScreenGui and focused:IsDescendantOf(ScreenGui) then return end
-    local box = findCodeTextBox()
-    if not (box and isGuiVisible(box)) then return end
-    writeBusy = true
-    task.spawn(function()
-        local ok, err = pcall(function()
-            while _G.AutoWriteEnabled and #pendingQueue > 0 do
-                local b = findCodeTextBox()
-                if not (b and isGuiVisible(b)) then break end
-                local code = table.remove(pendingQueue, 1)
-                pendingSeen[code] = nil
-                writeAndSubmit(code)
-            end
-        end)
-        writeBusy = false
-        if not ok then warn("[CodeSniper] triggerWrite error: " .. tostring(err)) end
-    end)
-end
-
-local function startAutoWriteLoop()
-    if autoWriteConn then return end
-    local playerGui = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
-    local boxConn = playerGui and playerGui.DescendantAdded:Connect(function(obj)
-        if _isCodeBox(obj) and isGuiVisible(obj) then
-            _cachedBox = obj
-            triggerWrite()
-        end
-    end)
-    local boxRemConn = playerGui and playerGui.DescendantRemoving:Connect(function(obj)
-        if obj == _cachedBox then _cachedBox = nil end
-    end)
-    autoWriteConn = { Disconnect = function()
-        if boxConn then boxConn:Disconnect() end
-        if boxRemConn then boxRemConn:Disconnect() end
-    end }
-    table.insert(activeConnections, autoWriteConn)
-end
-
-local function extractStrings(val, out)
-    out = out or {}
-    local t = type(val)
-    if t == "string" then
-        table.insert(out, val)
-    elseif t == "table" then
-        for _, v in pairs(val) do
-            extractStrings(v, out)
-        end
-    end
-    return out
-end
-
-local function processText(text)
-    if not text or text == "" then return end
-    local codes = extractCodesFromText(text)
-    if #codes == 0 then return end
-    for _, code in ipairs(codes) do
-        copyCodeToClipboard(code)
-        if not pendingSeen[code] then
-            pendingSeen[code] = true
-            table.insert(pendingQueue, code)
-            triggerWrite()
-        end
+    if getgenv then
+        getgenv().ACECodeSniperNotifyConnection = aceListenConnection
     end
 end
-
-local function resolveRemote()
-    if _G.PhiNotifyRemote then return _G.PhiNotifyRemote end
-    local Net
-    local deadline = tick() + 30
-    while not Net and tick() < deadline do
-        pcall(function()
-            local Pkgs = ReplicatedStorage:FindFirstChild("Packages")
-            if Pkgs then Net = Pkgs:FindFirstChild("Net") end
-        end)
-        if not Net then task.wait(0.5) end
+if getgenv then
+    getgenv().StopAura = function()
+        if aceListenConnection then
+            pcall(function() aceListenConnection:Disconnect() end)
+            aceListenConnection = nil
+        end
+        if getgenv().ACECodeSniperNotifyConnection then
+            pcall(function() getgenv().ACECodeSniperNotifyConnection:Disconnect() end)
+            getgenv().ACECodeSniperNotifyConnection = nil
+        end
+        if GUI then GUI:Destroy() end
     end
-    if not Net then return nil end
-    local getinfo = debug and (debug.getinfo or debug.info)
-    local NC = nil
-    if getconnections and getinfo then
-        for _, d in ipairs(Net:GetDescendants()) do
-            if d:IsA("RemoteEvent") then
-                local ok, cs = pcall(getconnections, d.OnClientEvent)
-                if ok and cs then
-                    for _, c in ipairs(cs) do
-                        local f, fn = pcall(function() return c.Function end)
-                        if f and type(fn) == "function" then
-                            local i, info = pcall(getinfo, fn)
-                            if i and tostring((type(info) == "table" and (info.short_src or info.source)) or info or ""):find("NotificationController", 1, true) then
-                                NC = d
-                                break
-                            end
-                        end
-                    end
-                    if NC then break end
-                end
-            end
-        end
-    end
-    if not NC then
-        for _, d in ipairs(Net:GetDescendants()) do
-            if d:IsA("RemoteEvent") and d.Name:match("^RE/%x+$") then
-                NC = d
-                break
-            end
-        end
-    end
-    if NC then _G.PhiNotifyRemote = NC end
-    return NC
 end
-
-local function startMonitoring()
-    task.spawn(function()
-        local NC = resolveRemote()
-        if not NC then return end
-        local conn = NC.OnClientEvent:Connect(function(...)
-            if not _G.ScriptEnabled then return end
-            local strings = {}
-            for _, v in ipairs({...}) do
-                local t = type(v)
-                if t == "string" then
-                    table.insert(strings, v)
-                elseif t == "table" then
-                    for _, v2 in pairs(v) do
-                        if type(v2) == "string" then table.insert(strings, v2) end
-                    end
-                end
-            end
-            for _, s in ipairs(strings) do
-                processText(s)
-            end
-        end)
-        table.insert(activeConnections, conn)
-    end)
-end
-
-local activeConnections = {}
-
-local function cleanupMonitoring()
-    for _, conn in pairs(activeConnections) do
-        if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
-    end
-    table.clear(activeConnections)
-    table.clear(collectedCodes)
-    table.clear(collectedSeen)
-    table.clear(pendingQueue)
-    table.clear(pendingSeen)
-    writeBusy = false
-    autoWriteConn = nil
-end
-
-local function createAnimatedStroke(parent, thickness, speed)
-    local s = Instance.new("UIStroke")
-    s.Thickness = thickness or 1.5
-    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    s.Color = Color3.new(1, 1, 1)
-    s.Parent = parent
-    local g = Instance.new("UIGradient")
-    g.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 50, 150)),
-        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(80, 180, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(80, 180, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 50, 150))
-    })
-    g.Rotation = 0
-    g.Parent = s
-    task.spawn(function()
-        local spd = speed or 1.2
-        while parent.Parent do
-            g.Rotation = (g.Rotation + spd) % 360
-            task.wait()
-        end
-    end)
-    return s, g
-end
-
-local function createUI()
-    local oldGui = game:GetService("CoreGui"):FindFirstChild("BrainrotRedeemerGui")
-        or LocalPlayer.PlayerGui:FindFirstChild("BrainrotRedeemerGui")
-    if oldGui then oldGui:Destroy() end
-
-    ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "BrainrotRedeemerGui"
-    ScreenGui.ResetOnSpawn = false
-    pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
-    if not ScreenGui.Parent then
-        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    end
-
-    MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 220, 0, 140)
-    MainFrame.Position = UDim2.new(0.5, -110, 0.5, -70)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(8, 14, 32)
-    MainFrame.BackgroundTransparency = 0.25
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Active = true
-    MainFrame.Draggable = true
-    MainFrame.Parent = ScreenGui
-
-    local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 10)
-    mainCorner.Parent = MainFrame
-    createAnimatedStroke(MainFrame, 2, 0.8)
-
-    local dragging, dragInput, dragStart, startPos
-    MainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(0, 120, 0, 20)
-    title.Position = UDim2.new(0, 10, 0, 5)
-    title.BackgroundTransparency = 1
-    title.Text = "Moon Hub"
-    title.Font = Enum.Font.GothamBlack
-    title.TextSize = 16
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = MainFrame
-
-    local titleGrad = Instance.new("UIGradient")
-    titleGrad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 160, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(70, 160, 255))
-    })
-    titleGrad.Parent = title
-    task.spawn(function()
-        while MainFrame.Parent do
-            titleGrad.Rotation = (titleGrad.Rotation + 1.2) % 360
-            task.wait()
-        end
-    end)
-
-    local subtitle = Instance.new("TextLabel")
-    subtitle.Size = UDim2.new(0, 120, 0, 15)
-    subtitle.Position = UDim2.new(0, 10, 0, 23)
-    subtitle.BackgroundTransparency = 1
-    subtitle.Text = "Auto Redeem Code"
-    subtitle.Font = Enum.Font.GothamMedium
-    subtitle.TextSize = 11
-    subtitle.TextColor3 = Color3.new(1, 1, 1)
-    subtitle.TextTransparency = 0.3
-    subtitle.TextXAlignment = Enum.TextXAlignment.Left
-    subtitle.Parent = MainFrame
-
-    local autoWriteRow = Instance.new("Frame")
-    autoWriteRow.Size = UDim2.new(1, -20, 0, 40)
-    autoWriteRow.Position = UDim2.new(0, 10, 0, 45)
-    autoWriteRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-    autoWriteRow.Parent = MainFrame
-    Instance.new("UICorner", autoWriteRow).CornerRadius = UDim.new(0, 8)
-    createAnimatedStroke(autoWriteRow, 1, 1.2)
-
-    local awLabel = Instance.new("TextLabel")
-    awLabel.Size = UDim2.new(0, 80, 1, 0)
-    awLabel.Position = UDim2.new(0, 10, 0, 0)
-    awLabel.BackgroundTransparency = 1
-    awLabel.Text = "Auto Write"
-    awLabel.Font = Enum.Font.GothamBlack
-    awLabel.TextSize = 13
-    awLabel.TextColor3 = Color3.new(1, 1, 1)
-    awLabel.TextXAlignment = Enum.TextXAlignment.Left
-    awLabel.Parent = autoWriteRow
-
-    local awSwitchBg = Instance.new("Frame")
-    awSwitchBg.Size = UDim2.new(0, 36, 0, 18)
-    awSwitchBg.Position = UDim2.new(1, -46, 0.5, -9)
-    awSwitchBg.BackgroundTransparency = 1
-    awSwitchBg.Parent = autoWriteRow
-    Instance.new("UICorner", awSwitchBg).CornerRadius = UDim.new(0, 9)
-    createAnimatedStroke(awSwitchBg, 2, 1.5)
-
-    local awSwitchKnob = Instance.new("Frame")
-    awSwitchKnob.Size = UDim2.new(0, 14, 0, 14)
-    awSwitchKnob.Position = UDim2.new(1, -16, 0.5, -7)
-    awSwitchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-    awSwitchKnob.Parent = awSwitchBg
-    Instance.new("UICorner", awSwitchKnob).CornerRadius = UDim.new(0, 7)
-
-    local awToggleBtn = Instance.new("TextButton")
-    awToggleBtn.Size = UDim2.new(0, 36, 0, 18)
-    awToggleBtn.Position = UDim2.new(1, -46, 0.5, -9)
-    awToggleBtn.BackgroundTransparency = 1
-    awToggleBtn.Text = ""
-    awToggleBtn.Parent = autoWriteRow
-    awToggleBtn.MouseButton1Click:Connect(function()
-        _G.AutoWriteEnabled = not _G.AutoWriteEnabled
-        local newPos = _G.AutoWriteEnabled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-        local newColor = _G.AutoWriteEnabled and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
-        TweenService:Create(awSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
-        TweenService:Create(awSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
-    end)
-
-    local autoSubmitRow = Instance.new("Frame")
-    autoSubmitRow.Size = UDim2.new(1, -20, 0, 40)
-    autoSubmitRow.Position = UDim2.new(0, 10, 0, 90)
-    autoSubmitRow.BackgroundColor3 = Color3.fromRGB(15, 25, 55)
-    autoSubmitRow.Parent = MainFrame
-    Instance.new("UICorner", autoSubmitRow).CornerRadius = UDim.new(0, 8)
-    createAnimatedStroke(autoSubmitRow, 1, 1.2)
-
-    local asLabel = Instance.new("TextLabel")
-    asLabel.Size = UDim2.new(0, 80, 1, 0)
-    asLabel.Position = UDim2.new(0, 10, 0, 0)
-    asLabel.BackgroundTransparency = 1
-    asLabel.Text = "Auto Submit"
-    asLabel.Font = Enum.Font.GothamBlack
-    asLabel.TextSize = 13
-    asLabel.TextColor3 = Color3.new(1, 1, 1)
-    asLabel.TextXAlignment = Enum.TextXAlignment.Left
-    asLabel.Parent = autoSubmitRow
-
-    SubmitBox = Instance.new("TextBox")
-    SubmitBox.Name = "SubmitBox"
-    SubmitBox.Size = UDim2.new(0, 50, 0, 22)
-    SubmitBox.Position = UDim2.new(0, 95, 0.5, -11)
-    SubmitBox.BackgroundColor3 = Color3.fromRGB(40, 100, 220)
-    SubmitBox.Text = "1"
-    SubmitBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SubmitBox.TextSize = 12
-    SubmitBox.Font = Enum.Font.GothamBold
-    SubmitBox.ClearTextOnFocus = false
-    SubmitBox.TextEditable = true
-    SubmitBox.ZIndex = 10
-    SubmitBox.Parent = autoSubmitRow
-    local submitCorner = Instance.new("UICorner")
-    submitCorner.CornerRadius = UDim.new(0, 6)
-    submitCorner.Parent = SubmitBox
-    createAnimatedStroke(SubmitBox, 1.5, 1.2)
-
-    SubmitBox.Changed:Connect(function(property)
-        if property == "Text" then
-            local n = tonumber(SubmitBox.Text) or 1
-            if n < 1 then n = 1 end
-            _G.SubmitAfterCount = n
-        end
-    end)
-
-    local asSwitchBg = Instance.new("Frame")
-    asSwitchBg.Size = UDim2.new(0, 36, 0, 18)
-    asSwitchBg.Position = UDim2.new(1, -46, 0.5, -9)
-    asSwitchBg.BackgroundTransparency = 1
-    asSwitchBg.Parent = autoSubmitRow
-    Instance.new("UICorner", asSwitchBg).CornerRadius = UDim.new(0, 9)
-    createAnimatedStroke(asSwitchBg, 2, 1.5)
-
-    local asSwitchKnob = Instance.new("Frame")
-    asSwitchKnob.Size = UDim2.new(0, 14, 0, 14)
-    asSwitchKnob.Position = UDim2.new(1, -16, 0.5, -7)
-    asSwitchKnob.BackgroundColor3 = Color3.new(1, 1, 1)
-    asSwitchKnob.Parent = asSwitchBg
-    Instance.new("UICorner", asSwitchKnob).CornerRadius = UDim.new(0, 7)
-
-    local asToggleBtn = Instance.new("TextButton")
-    asToggleBtn.Size = UDim2.new(0, 36, 0, 18)
-    asToggleBtn.Position = UDim2.new(1, -46, 0.5, -9)
-    asToggleBtn.BackgroundTransparency = 1
-    asToggleBtn.Text = ""
-    asToggleBtn.ZIndex = 9
-    asToggleBtn.Parent = autoSubmitRow
-    asToggleBtn.MouseButton1Click:Connect(function()
-        _G.AutoSubmitEnabled = not _G.AutoSubmitEnabled
-        local newPos = _G.AutoSubmitEnabled and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-        local newColor = _G.AutoSubmitEnabled and Color3.fromRGB(40, 100, 220) or Color3.fromRGB(20, 35, 75)
-        TweenService:Create(asSwitchKnob, TweenInfo.new(0.15), {Position = newPos}):Play()
-        TweenService:Create(asSwitchBg, TweenInfo.new(0.15), {BackgroundColor3 = newColor}):Play()
-    end)
-end
-
-local function init()
-    pcall(cleanupMonitoring)
-    createUI()
-    startMonitoring()
-    startAutoWriteLoop()
-end
-
-init()
